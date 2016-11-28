@@ -1,0 +1,73 @@
+#!env python
+
+import sys
+
+try:
+    import pykitti
+except ImportError as e:
+    print('Could not load module \'pykitti\'. Please run `pip install pykitti`')
+    sys.exit(1)
+
+import tf
+import os
+import cv2
+import rospy
+import rosbag
+from datetime import datetime
+from sensor_msgs.msg import Image, Imu
+from cv_bridge import CvBridge, CvBridgeError
+
+def main():
+    if len(sys.argv) not in (3, 4):
+        print("Usage: kitti2bag base_dir date drive")
+        print("   or: kitti2bag date drive (base_dir is then current dir)")
+        return
+    basedir = sys.argv[1] if len(sys.argv) == 4 else os.getcwd()
+    date, drive = tuple(sys.argv[-2:])
+
+    bag = rosbag.Bag("kitti_{}_drive_{}_sync.bag".format(date, drive), 'w')
+    kitti = pykitti.raw(basedir, date, drive)
+    if not os.path.exists(kitti.data_path):
+        print('Path {} does not exists. Exitting.'.format(kitti.data_path))
+        sys.exit(1)
+    kitti.load_oxts()
+    kitti.load_timestamps()
+    bridge = CvBridge()
+
+    try:
+	for timestamp, oxts in zip(kitti.timestamps, kitti.oxts):
+	    q = tf.transformations.quaternion_from_euler(oxts.packet.roll, oxts.packet.pitch, oxts.packet.yaw)
+	    imu = Imu()
+	    imu.header.frame_id = 'imu_link'
+	    imu.header.stamp = rospy.Time.from_sec(float(timestamp.strftime("%s.%f")))
+	    imu.orientation.x = q[0]
+	    imu.orientation.y = q[1]
+	    imu.orientation.z = q[2]
+	    imu.orientation.w = q[3]
+	    imu.linear_acceleration.x = oxts.packet.af
+	    imu.linear_acceleration.y = oxts.packet.al
+	    imu.linear_acceleration.z = oxts.packet.au
+	    imu.angular_velocity.x = oxts.packet.wf
+	    imu.angular_velocity.y = oxts.packet.wl
+	    imu.angular_velocity.z = oxts.packet.wu
+	    bag.write('/kitti/oxts/imu', imu)
+
+	image00_path = os.path.join(kitti.data_path, 'image_00')
+	img_data_dir = os.path.join(image00_path, 'data')
+	img_filenames = sorted(os.listdir(img_data_dir))
+	with open(os.path.join(image00_path, 'timestamps.txt')) as f:
+            img_datetimes = map(lambda x: datetime.strptime(x[:-4], '%Y-%m-%d %H:%M:%S.%f'), f.readlines())
+
+	for dt, filename in zip(img_datetimes, img_filenames):
+	    img_filename = os.path.join(img_data_dir, filename)
+	    cv_image = cv2.cvtColor(cv2.imread(img_filename), cv2.COLOR_BGR2GRAY)
+	    image_message = bridge.cv2_to_imgmsg(cv_image, encoding="mono8")
+	    image_message.header.frame_id = 'cam_left_gray'
+	    image_message.header.stamp = rospy.Time.from_sec(float(datetime.strftime(dt, "%s.%f")))
+	    bag.write('/kitti/camera/gray/left', image_message)
+    finally:
+	bag.close()
+	print('BAG: {}'.format(bag.filename))
+
+if __name__ == '__main__':
+    main()
