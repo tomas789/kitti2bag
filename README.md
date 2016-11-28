@@ -21,7 +21,7 @@ Feature request list:
 
 It is very easy! Just run
 ```bash
-pip install git+ssh://git@github.com/tomas789/kitti2bag.git
+pip install kitti2bag
 ```
 
 ## How to run it?
