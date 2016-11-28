@@ -13,9 +13,10 @@ import os
 import cv2
 import rospy
 import rosbag
+from numpy import eye
 from tf2_msgs.msg import TFMessage
 from datetime import datetime
-from sensor_msgs.msg import Image, Imu
+from sensor_msgs.msg import Image, CameraInfo, Imu
 from geometry_msgs.msg import TransformStamped
 from cv_bridge import CvBridge, CvBridgeError
 
@@ -40,7 +41,7 @@ def save_imu_data(bag, kitti, imu_frame_id, topic):
         bag.write(topic, imu, t=imu.header.stamp)
 
 
-def save_camera_data(bag, kitti, bridge, camera, camera_frame_id, topic):
+def save_camera_data(bag, kitti, util, bridge, camera, camera_frame_id, topic):
     print("Exporting camera {}".format(camera))
     camera_pad = '{0:02d}'.format(camera)
     image_path = os.path.join(kitti.data_path, 'image_{}'.format(camera_pad))
@@ -48,6 +49,15 @@ def save_camera_data(bag, kitti, bridge, camera, camera_frame_id, topic):
     img_filenames = sorted(os.listdir(img_data_dir))
     with open(os.path.join(image_path, 'timestamps.txt')) as f:
         img_datetimes = map(lambda x: datetime.strptime(x[:-4], '%Y-%m-%d %H:%M:%S.%f'), f.readlines())
+
+    calib = CameraInfo()
+    calib.header.frame_id = camera_frame_id
+    calib.width, calib.height = tuple(util['S_rect_{}'.format(camera_pad)].tolist())
+    calib.distortion_model = 'plumb_bob'
+    calib.K = util['K_{}'.format(camera_pad)]
+    calib.R = util['R_rect_{}'.format(camera_pad)]
+    calib.D = util['D_{}'.format(camera_pad)]
+    calib.P = util['P_rect_{}'.format(camera_pad)]
 
     for dt, filename in zip(img_datetimes, img_filenames):
         img_filename = os.path.join(img_data_dir, filename)
@@ -58,15 +68,16 @@ def save_camera_data(bag, kitti, bridge, camera, camera_frame_id, topic):
         image_message = bridge.cv2_to_imgmsg(cv_image, encoding=encoding)
         image_message.header.frame_id = camera_frame_id
         image_message.header.stamp = rospy.Time.from_sec(float(datetime.strftime(dt, "%s.%f")))
-        bag.write(topic, image_message, t=image_message.header.stamp)
+        calib.header.stamp = image_message.header.stamp
+        bag.write(topic + '/image_raw', image_message, t=image_message.header.stamp)
+        bag.write(topic + '/camera_info', calib, t=calib.header.stamp)
 
 
-def get_static_transform(bag, time, from_frame_id, to_frame_id, transform):
-    q = tf.transformations.quaternion_from_matrix(transform)
+def get_static_transform(from_frame_id, to_frame_id, transform):
     t = transform[0:3, 3]
+    q = tf.transformations.quaternion_from_matrix(transform)
     tf_msg = TransformStamped()
     tf_msg.header.frame_id = from_frame_id
-    tf_msg.header.stamp = time
     tf_msg.child_frame_id = to_frame_id
     tf_msg.transform.translation.x = float(t[0])
     tf_msg.transform.translation.y = float(t[1])
@@ -78,14 +89,28 @@ def get_static_transform(bag, time, from_frame_id, to_frame_id, transform):
     return tf_msg
 
 
-def save_static_transforms(bag, transforms, min_time):
+def inv(transform):
+    "Invert rigid body transformation matrix"
+    R = transform[0:3, 0:3]
+    t = transform[0:3, 3]
+    t_inv = -1 * R.T.dot(t)
+    transform_inv = eye(4)
+    transform_inv[0:3, 0:3] = R.T
+    transform_inv[0:3, 3] = t_inv
+    return transform_inv
+
+
+def save_static_transforms(bag, transforms, timestamps):
     print("Exporting transformations")
     tfm = TFMessage()
-    time = rospy.Time.from_sec(min_time)
     for transform in transforms:
-        t = get_static_transform(bag, time, from_frame_id=transform[0], to_frame_id=transform[1], transform=transform[2])
+        t = get_static_transform(from_frame_id=transform[0], to_frame_id=transform[1], transform=transform[2])
         tfm.transforms.append(t)
-    bag.write('/tf_static', tfm, t=time)
+    for timestamp in timestamps:
+        time = rospy.Time.from_sec(float(timestamp.strftime("%s.%f")))
+        for i in range(len(tfm.transforms)):
+            tfm.transforms[i].header.stamp = time
+        bag.write('/tf_static', tfm, t=time)
 
 
 def main():
@@ -125,28 +150,32 @@ def main():
 
         # CAMERAS
         cameras = [
-            (0, 'camera_gray_left', '/kitti/camera/gray/left'),
-            (1, 'camera_gray_right', '/kitti/camera/gray/right'),
-            (2, 'camera_color_left', '/kitti/camera/color/left'),
-            (3, 'camera_color_left', '/kitti/camera/color/right')
+            (0, 'camera_gray_left', '/kitti/camera_gray_left'),
+            (1, 'camera_gray_right', '/kitti/camera_gray_right'),
+            (2, 'camera_color_left', '/kitti/camera_color_left'),
+            (3, 'camera_color_right', '/kitti/camera_color_right')
         ]
+
+        T_base_link_to_imu = eye(4, 4)
+        T_base_link_to_imu[0:3, 3] = [-2.71/2.0-0.05, 0.32, 0.93]
 
         # tf_static
         transforms = [
-            (imu_frame_id, velo_frame_id, kitti.calib.T_velo_imu),
-            (imu_frame_id, cameras[0][1], kitti.calib.T_cam0_imu),
-            (imu_frame_id, cameras[1][1], kitti.calib.T_cam1_imu),
-            (imu_frame_id, cameras[2][1], kitti.calib.T_cam2_imu),
-            (imu_frame_id, cameras[3][1], kitti.calib.T_cam3_imu)
+            ('base_link', imu_frame_id, T_base_link_to_imu),
+            (imu_frame_id, velo_frame_id, inv(kitti.calib.T_velo_imu)),
+            (imu_frame_id, cameras[0][1], inv(kitti.calib.T_cam0_imu)),
+            (imu_frame_id, cameras[1][1], inv(kitti.calib.T_cam1_imu)),
+            (imu_frame_id, cameras[2][1], inv(kitti.calib.T_cam2_imu)),
+            (imu_frame_id, cameras[3][1], inv(kitti.calib.T_cam3_imu))
         ]
 
-        min_time = float(kitti.timestamps[0].strftime("%s.%f"))
+        util = pykitti.utils.read_calib_file(os.path.join(kitti.calib_path, 'calib_cam_to_cam.txt'))
 
         # Export
-        save_static_transforms(bag, transforms, min_time)
+        save_static_transforms(bag, transforms, kitti.timestamps)
         save_imu_data(bag, kitti, imu_frame_id, imu_topic)
         for camera in cameras:
-            save_camera_data(bag, kitti, bridge, camera=camera[0], camera_frame_id=camera[1], topic=camera[2])
+            save_camera_data(bag, kitti, util, bridge, camera=camera[0], camera_frame_id=camera[1], topic=camera[2])
     finally:
         print("## OVERVIEW ##")
         print(bag)
