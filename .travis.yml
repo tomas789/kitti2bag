@@ -116,7 +116,7 @@ script:
   - source devel/setup.bash
   - catkin_make run_tests && catkin_test_results
   - cd $CI_SOURCE_PATH
-  - python setup.py install
+  - sudo python setup.py install
   - mkdir -p $HOME/kitti
   - cd $HOME/kitti
   - wget http://kitti.is.tue.mpg.de/kitti/raw_data/2011_09_26_drive_0048/2011_09_26_drive_0048_sync.zip
