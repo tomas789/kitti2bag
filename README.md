@@ -1,5 +1,7 @@
 # kitti2bag
 
+[![Build Status](https://travis-ci.org/tomas789/kitti2bag.svg?branch=master)](https://travis-ci.org/tomas789/kitti2bag)
+
 Convert [KITTI](http://www.cvlibs.net/datasets/kitti/index.php) dataset to ROS bag file the easy way!
 
 ![KITTI playback preview](https://tomas789.github.io/kitti2bag/img/kitti_playback.png)
