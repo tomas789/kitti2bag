@@ -2,6 +2,8 @@
 
 import sys
 
+import std_msgs
+
 try:
     import pykitti
 except ImportError as e:
@@ -16,9 +18,12 @@ import rosbag
 from numpy import eye
 from tf2_msgs.msg import TFMessage
 from datetime import datetime
-from sensor_msgs.msg import Image, CameraInfo, Imu
+from std_msgs.msg import Header
+from sensor_msgs.msg import CameraInfo, Imu, PointField
+import sensor_msgs.point_cloud2 as pcl2
 from geometry_msgs.msg import TransformStamped
-from cv_bridge import CvBridge, CvBridgeError
+from cv_bridge import CvBridge
+import numpy as np
 
 
 def save_imu_data(bag, kitti, imu_frame_id, topic):
@@ -71,6 +76,35 @@ def save_camera_data(bag, kitti, util, bridge, camera, camera_frame_id, topic):
         calib.header.stamp = image_message.header.stamp
         bag.write(topic + '/image_raw', image_message, t=image_message.header.stamp)
         bag.write(topic + '/camera_info', calib, t=calib.header.stamp)
+
+
+def save_velo_data(bag, kitti, velo_frame_id, topic):
+    print("Exporting velodyne data")
+    velo_path = os.path.join(kitti.data_path, 'velodyne_points')
+    velo_data_dir = os.path.join(velo_path, 'data')
+    velo_filenames = sorted(os.listdir(velo_data_dir))
+    with open(os.path.join(velo_path, 'timestamps.txt')) as f:
+        velo_datetimes = map(lambda x: datetime.strptime(x[:-4], '%Y-%m-%d %H:%M:%S.%f'), f.readlines())
+
+    for dt, filename in zip(velo_datetimes, velo_filenames):
+        velo_filename = os.path.join(velo_data_dir, filename)
+
+        # read binary data
+        scan = (np.fromfile(velo_filename, dtype=np.float32)).reshape(-1, 4)
+
+        # create header
+        header = Header()
+        header.frame_id = velo_frame_id
+        header.stamp = rospy.Time.from_sec(float(datetime.strftime(dt, "%s.%f")))
+
+        # fill pcl msg
+        fields = [PointField('x', 0, PointField.FLOAT32, 1),
+                  PointField('y', 4, PointField.FLOAT32, 1),
+                  PointField('z', 8, PointField.FLOAT32, 1),
+                  PointField('i', 12, PointField.FLOAT32, 1)]
+        pcl_msg = pcl2.create_cloud(header, fields, scan)
+
+        bag.write(topic + '/pointcloud', pcl_msg, t=pcl_msg.header.stamp)
 
 
 def get_static_transform(from_frame_id, to_frame_id, transform):
@@ -134,6 +168,7 @@ def main():
     kitti.load_calib()
     kitti.load_oxts()
     kitti.load_timestamps()
+    # kitti.load_velo()
 
     if len(kitti.timestamps) == 0:
         print('Dataset is empty? Exiting.')
@@ -176,6 +211,8 @@ def main():
         save_imu_data(bag, kitti, imu_frame_id, imu_topic)
         for camera in cameras:
             save_camera_data(bag, kitti, util, bridge, camera=camera[0], camera_frame_id=camera[1], topic=camera[2])
+        save_velo_data(bag, kitti, velo_frame_id, velo_topic)
+
     finally:
         print("## OVERVIEW ##")
         print(bag)
