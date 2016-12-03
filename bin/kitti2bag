@@ -2,8 +2,6 @@
 
 import sys
 
-import std_msgs
-
 try:
     import pykitti
 except ImportError as e:
