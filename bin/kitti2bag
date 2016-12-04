@@ -13,7 +13,6 @@ import os
 import cv2
 import rospy
 import rosbag
-from numpy import eye
 from tf2_msgs.msg import TFMessage
 from datetime import datetime
 from std_msgs.msg import Header
@@ -126,7 +125,7 @@ def inv(transform):
     R = transform[0:3, 0:3]
     t = transform[0:3, 3]
     t_inv = -1 * R.T.dot(t)
-    transform_inv = eye(4)
+    transform_inv = np.eye(4)
     transform_inv[0:3, 0:3] = R.T
     transform_inv[0:3, 3] = t_inv
     return transform_inv
@@ -189,7 +188,7 @@ def main():
             (3, 'camera_color_right', '/kitti/camera_color_right')
         ]
 
-        T_base_link_to_imu = eye(4, 4)
+        T_base_link_to_imu = np.eye(4, 4)
         T_base_link_to_imu[0:3, 3] = [-2.71/2.0-0.05, 0.32, 0.93]
 
         # tf_static
