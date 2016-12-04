@@ -27,7 +27,7 @@ pip install kitti2bag
 
 ## How to run it?
 
-One example if better then thousand words so here it is
+One example is better then thousand words so here it is
 
 ```bash
 $ wget http://kitti.is.tue.mpg.de/kitti/raw_data/2011_09_26_drive_0002/2011_09_26_drive_0002_sync.zip
