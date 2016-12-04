@@ -87,7 +87,7 @@ install:
   # Add the package under integration to the workspace using a symlink.
   - cd ~/catkin_ws/src
   - ln -s $CI_SOURCE_PATH .
-  - sudo apt-get install -y python-dev python-numpy python-matplotlib ros-$ROS_DISTRO-tf
+  - sudo apt-get install -y python-dev python-numpy python-matplotlib ros-$ROS_DISTRO-tf ros-$ROS_DISTRO-opencv-candidate
 
 # Install all dependencies, using wstool first and rosdep second.
 # wstool looks for a ROSINSTALL_FILE defined in the environment variables.
