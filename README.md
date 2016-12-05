@@ -11,9 +11,7 @@ Convert [KITTI](http://www.cvlibs.net/datasets/kitti/index.php) dataset to ROS b
 Help me make this feature rich and complete. Just fork this repo, implement new features (very easy in this case) and make [pull request](https://github.com/tomas789/kitti2bag/pulls).
 
 Feature request list:
- * export GPS
  * make [URDF](http://wiki.ros.org/urdf) of a car so transformations between frames are easily done by ROS itself.
- * export odometry
  * deal with tracklets
  * support for unsynced+unrectified version
  * add progressbar
