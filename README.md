@@ -16,6 +16,7 @@ Feature request list:
  * export odometry
  * deal with tracklets
  * support for unsynced+unrectified version
+ * add progressbar
 
 ## How to install it?
 
