@@ -16,9 +16,9 @@ import rosbag
 from tf2_msgs.msg import TFMessage
 from datetime import datetime
 from std_msgs.msg import Header
-from sensor_msgs.msg import CameraInfo, Imu, PointField
+from sensor_msgs.msg import CameraInfo, Imu, PointField, NavSatFix
 import sensor_msgs.point_cloud2 as pcl2
-from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import TransformStamped, TwistStamped
 from cv_bridge import CvBridge
 import numpy as np
 
@@ -144,6 +144,32 @@ def save_static_transforms(bag, transforms, timestamps):
         bag.write('/tf_static', tfm, t=time)
 
 
+def save_gps_fix_data(bag, kitti, gps_frame_id, topic):
+    for timestamp, oxts in zip(kitti.timestamps, kitti.oxts):
+        navsatfix_msg = NavSatFix()
+        navsatfix_msg.header.frame_id = gps_frame_id
+        navsatfix_msg.header.stamp = rospy.Time.from_sec(float(timestamp.strftime("%s.%f")))
+        navsatfix_msg.latitude = oxts.packet.lat
+        navsatfix_msg.longitude = oxts.packet.lon
+        navsatfix_msg.altitude = oxts.packet.alt
+        navsatfix_msg.status.service = 1
+        bag.write(topic, navsatfix_msg, t=navsatfix_msg.header.stamp)
+
+
+def save_gps_vel_data(bag, kitti, gps_frame_id, topic):
+    for timestamp, oxts in zip(kitti.timestamps, kitti.oxts):
+        twist_msg = TwistStamped()
+        twist_msg.header.frame_id = gps_frame_id
+        twist_msg.header.stamp = rospy.Time.from_sec(float(timestamp.strftime("%s.%f")))
+        twist_msg.twist.linear.x = oxts.packet.vf
+        twist_msg.twist.linear.y = oxts.packet.vl
+        twist_msg.twist.linear.z = oxts.packet.vu
+        twist_msg.twist.angular.x = oxts.packet.wf
+        twist_msg.twist.angular.y = oxts.packet.wl
+        twist_msg.twist.angular.z = oxts.packet.wu
+        bag.write(topic, twist_msg, t=twist_msg.header.stamp)
+
+
 def main():
     if len(sys.argv) not in (3, 4):
         print("Usage: kitti2bag base_dir date drive")
@@ -175,8 +201,8 @@ def main():
         # IMU
         imu_frame_id = 'imu_link'
         imu_topic = '/kitti/oxts/imu'
-
-        # Prepared for velo. Not implemented yet.
+        gps_fix_topic = '/kitti/oxts/gps/fix'
+        gps_vel_topic = '/kitti/oxts/gps/vel'
         velo_frame_id = 'velo_link'
         velo_topic = '/kitti/velo'
 
@@ -206,6 +232,8 @@ def main():
         # Export
         save_static_transforms(bag, transforms, kitti.timestamps)
         save_imu_data(bag, kitti, imu_frame_id, imu_topic)
+        save_gps_fix_data(bag, kitti, imu_frame_id, gps_fix_topic)
+        save_gps_vel_data(bag, kitti, imu_frame_id, gps_vel_topic)
         for camera in cameras:
             save_camera_data(bag, kitti, util, bridge, camera=camera[0], camera_frame_id=camera[1], topic=camera[2])
         save_velo_data(bag, kitti, velo_frame_id, velo_topic)
