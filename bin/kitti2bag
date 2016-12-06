@@ -51,7 +51,7 @@ def save_dynamic_tf(bag, kitti):
         tf_oxts_transform = TransformStamped()
         tf_oxts_transform.header.stamp = rospy.Time.from_sec(float(timestamp.strftime("%s.%f")))
         tf_oxts_transform.header.frame_id = 'world'
-        tf_oxts_transform.child_frame_id = 'imu_link'
+        tf_oxts_transform.child_frame_id = 'base_link'
 
         transform = (oxts.T_w_imu)
         t = transform[0:3, 3]
