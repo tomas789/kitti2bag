@@ -18,7 +18,7 @@ from datetime import datetime
 from std_msgs.msg import Header
 from sensor_msgs.msg import CameraInfo, Imu, PointField, NavSatFix
 import sensor_msgs.point_cloud2 as pcl2
-from geometry_msgs.msg import TransformStamped, TwistStamped
+from geometry_msgs.msg import TransformStamped, TwistStamped, Transform
 from cv_bridge import CvBridge
 import numpy as np
 
@@ -41,6 +41,35 @@ def save_imu_data(bag, kitti, imu_frame_id, topic):
         imu.angular_velocity.y = oxts.packet.wl
         imu.angular_velocity.z = oxts.packet.wu
         bag.write(topic, imu, t=imu.header.stamp)
+
+
+def save_dynamic_tf(bag, kitti):
+    print("Exporting time dependent transformations")
+    for timestamp, oxts in zip(kitti.timestamps, kitti.oxts):
+        tf_oxts_msg = TFMessage()
+        tf_oxts_transform = TransformStamped()
+        tf_oxts_transform.header.stamp = rospy.Time.from_sec(float(timestamp.strftime("%s.%f")))
+        tf_oxts_transform.header.frame_id = 'world'
+        tf_oxts_transform.child_frame_id = 'base_link'
+
+        transform = (oxts.T_w_imu)
+        t = transform[0:3, 3]
+        q = tf.transformations.quaternion_from_matrix(transform)
+        oxts_tf = Transform()
+
+        oxts_tf.translation.x = t[0]
+        oxts_tf.translation.y = t[1]
+        oxts_tf.translation.z = t[2]
+
+        oxts_tf.rotation.x = q[0]
+        oxts_tf.rotation.y = q[1]
+        oxts_tf.rotation.z = q[2]
+        oxts_tf.rotation.w = q[3]
+
+        tf_oxts_transform.transform = oxts_tf
+        tf_oxts_msg.transforms.append(tf_oxts_transform)
+
+        bag.write('/tf', tf_oxts_msg, tf_oxts_msg.transforms[0].header.stamp)
 
 
 def save_camera_data(bag, kitti, util, bridge, camera, camera_frame_id, topic):
@@ -132,7 +161,7 @@ def inv(transform):
 
 
 def save_static_transforms(bag, transforms, timestamps):
-    print("Exporting transformations")
+    print("Exporting static transformations")
     tfm = TFMessage()
     for transform in transforms:
         t = get_static_transform(from_frame_id=transform[0], to_frame_id=transform[1], transform=transform[2])
@@ -231,12 +260,14 @@ def main():
 
         # Export
         save_static_transforms(bag, transforms, kitti.timestamps)
+        save_dynamic_tf(bag, kitti)
         save_imu_data(bag, kitti, imu_frame_id, imu_topic)
         save_gps_fix_data(bag, kitti, imu_frame_id, gps_fix_topic)
         save_gps_vel_data(bag, kitti, imu_frame_id, gps_vel_topic)
         for camera in cameras:
             save_camera_data(bag, kitti, util, bridge, camera=camera[0], camera_frame_id=camera[1], topic=camera[2])
         save_velo_data(bag, kitti, velo_frame_id, velo_topic)
+
 
     finally:
         print("## OVERVIEW ##")
