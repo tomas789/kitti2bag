@@ -15,6 +15,10 @@ Feature request list:
  * deal with tracklets
  * support for unsynced+unrectified version
  * add progressbar
+ 
+## Contributions
+
+Thanks to the work of @jnitsch, _kitti2bag_ can now export velodyne laser data and dynamic _tf_ transformations. Thank you!
 
 ## How to install it?
 
