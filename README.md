@@ -15,6 +15,8 @@ Feature request list:
  * deal with tracklets
  * support for unsynced+unrectified version
  * add progressbar
+ * provide documentation via [ROS wiki](wiki.ros.org)
+ * allow conversion of datasets (like odometry and so on)
  
 ## Contributions
 
