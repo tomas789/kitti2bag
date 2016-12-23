@@ -14,9 +14,9 @@ Feature request list:
  * make [URDF](http://wiki.ros.org/urdf) of a car so transformations between frames are easily done by ROS itself.
  * deal with tracklets
  * support for unsynced+unrectified version
- * add progressbar
  * provide documentation via [ROS wiki](wiki.ros.org)
  * allow conversion of datasets (like odometry and so on)
+ * provide simple GUI
  
 ## Contributions
 

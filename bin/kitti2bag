@@ -1,4 +1,5 @@
 #!env python
+# -*- coding: utf-8 -*-
 
 import sys
 
@@ -13,6 +14,7 @@ import os
 import cv2
 import rospy
 import rosbag
+import progressbar
 from tf2_msgs.msg import TFMessage
 from datetime import datetime
 from std_msgs.msg import Header
@@ -90,7 +92,9 @@ def save_camera_data(bag, kitti, util, bridge, camera, camera_frame_id, topic):
     calib.D = util['D_{}'.format(camera_pad)]
     calib.P = util['P_rect_{}'.format(camera_pad)]
 
-    for dt, filename in zip(img_datetimes, img_filenames):
+    iterable = zip(img_datetimes, img_filenames)
+    bar = progressbar.ProgressBar()
+    for dt, filename in bar(iterable):
         img_filename = os.path.join(img_data_dir, filename)
         cv_image = cv2.imread(img_filename)
         if camera in (0, 1):
@@ -110,9 +114,20 @@ def save_velo_data(bag, kitti, velo_frame_id, topic):
     velo_data_dir = os.path.join(velo_path, 'data')
     velo_filenames = sorted(os.listdir(velo_data_dir))
     with open(os.path.join(velo_path, 'timestamps.txt')) as f:
-        velo_datetimes = map(lambda x: datetime.strptime(x[:-4], '%Y-%m-%d %H:%M:%S.%f'), f.readlines())
+        lines = f.readlines()
+        velo_datetimes = []
+        for line in lines:
+            if len(line) == 1:
+                continue
+            dt = datetime.strptime(line[:-4], '%Y-%m-%d %H:%M:%S.%f')
+            velo_datetimes.append(dt)
 
-    for dt, filename in zip(velo_datetimes, velo_filenames):
+    iterable = zip(velo_datetimes, velo_filenames)
+    bar = progressbar.ProgressBar()
+    for dt, filename in bar(iterable):
+        if dt is None:
+            continue
+
         velo_filename = os.path.join(velo_data_dir, filename)
 
         # read binary data
