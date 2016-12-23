@@ -11,5 +11,5 @@ setup(name='kitti2bag',
       download_url = 'https://github.com/tomas789/kitti2bag/archive/1.4.zip',
       keywords = ['dataset', 'ros', 'rosbag', 'kitti'],
       scripts=['bin/kitti2bag'],
-      install_requires=['pykitti']
+      install_requires=['pykitti', 'progressbar2']
       )
