@@ -44,7 +44,6 @@ def save_imu_data(bag, kitti, imu_frame_id, topic):
         imu.angular_velocity.z = oxts.packet.wu
         bag.write(topic, imu, t=imu.header.stamp)
 
-
 def save_dynamic_tf(bag, kitti):
     print("Exporting time dependent transformations")
     for timestamp, oxts in zip(kitti.timestamps, kitti.oxts):
@@ -72,6 +71,7 @@ def save_dynamic_tf(bag, kitti):
         tf_oxts_msg.transforms.append(tf_oxts_transform)
 
         bag.write('/tf', tf_oxts_msg, tf_oxts_msg.transforms[0].header.stamp)
+
         
 def save_camera_data(bag, kitti_type, kitti, util, bridge, camera, camera_frame_id, topic, initial_time):
     print("Exporting camera {}".format(camera))
@@ -96,8 +96,7 @@ def save_camera_data(bag, kitti_type, kitti, util, bridge, camera, camera_frame_
         camera_pad = '{0:01d}'.format(camera)
         image_path = os.path.join(kitti.sequence_path, 'image_{}'.format(camera_pad))
         image_filenames = sorted(os.listdir(image_path))
-        with open(os.path.join(kitti.sequence_path, 'times.txt')) as f:
-            image_datetimes = map(lambda x: initial_time + float(x), f.readlines())
+        image_datetimes = map(lambda x: initial_time + x.total_seconds(), kitti.timestamps)
         
         calib = CameraInfo()
         calib.header.frame_id = camera_frame_id
@@ -340,9 +339,8 @@ def main():
             sys.exit(1)
 
         kitti.load_calib()        
-        kitti.load_timestamps()   
-        #kitti.load_poses()        
-
+        kitti.load_timestamps()  
+        #kitti.load_poses()     
         if len(kitti.timestamps) == 0:
             print('Dataset is empty? Exiting.')
             sys.exit(1)
