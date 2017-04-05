@@ -44,34 +44,63 @@ def save_imu_data(bag, kitti, imu_frame_id, topic):
         imu.angular_velocity.z = oxts.packet.wu
         bag.write(topic, imu, t=imu.header.stamp)
 
-def save_dynamic_tf(bag, kitti):
+
+def save_dynamic_tf(bag, kitti, kitti_type, initial_time):
     print("Exporting time dependent transformations")
-    for timestamp, oxts in zip(kitti.timestamps, kitti.oxts):
-        tf_oxts_msg = TFMessage()
-        tf_oxts_transform = TransformStamped()
-        tf_oxts_transform.header.stamp = rospy.Time.from_sec(float(timestamp.strftime("%s.%f")))
-        tf_oxts_transform.header.frame_id = 'world'
-        tf_oxts_transform.child_frame_id = 'base_link'
+    if kitti_type.find("raw") != -1:
+        for timestamp, oxts in zip(kitti.timestamps, kitti.oxts):
+            tf_oxts_msg = TFMessage()
+            tf_oxts_transform = TransformStamped()
+            tf_oxts_transform.header.stamp = rospy.Time.from_sec(float(timestamp.strftime("%s.%f")))
+            tf_oxts_transform.header.frame_id = 'world'
+            tf_oxts_transform.child_frame_id = 'base_link'
 
-        transform = (oxts.T_w_imu)
-        t = transform[0:3, 3]
-        q = tf.transformations.quaternion_from_matrix(transform)
-        oxts_tf = Transform()
+            transform = (oxts.T_w_imu)
+            t = transform[0:3, 3]
+            q = tf.transformations.quaternion_from_matrix(transform)
+            oxts_tf = Transform()
 
-        oxts_tf.translation.x = t[0]
-        oxts_tf.translation.y = t[1]
-        oxts_tf.translation.z = t[2]
+            oxts_tf.translation.x = t[0]
+            oxts_tf.translation.y = t[1]
+            oxts_tf.translation.z = t[2]
 
-        oxts_tf.rotation.x = q[0]
-        oxts_tf.rotation.y = q[1]
-        oxts_tf.rotation.z = q[2]
-        oxts_tf.rotation.w = q[3]
+            oxts_tf.rotation.x = q[0]
+            oxts_tf.rotation.y = q[1]
+            oxts_tf.rotation.z = q[2]
+            oxts_tf.rotation.w = q[3]
 
-        tf_oxts_transform.transform = oxts_tf
-        tf_oxts_msg.transforms.append(tf_oxts_transform)
+            tf_oxts_transform.transform = oxts_tf
+            tf_oxts_msg.transforms.append(tf_oxts_transform)
 
-        bag.write('/tf', tf_oxts_msg, tf_oxts_msg.transforms[0].header.stamp)
+            bag.write('/tf', tf_oxts_msg, tf_oxts_msg.transforms[0].header.stamp)
 
+    elif kitti_type.find("odom") != -1:
+        timestamps = map(lambda x: initial_time + x.total_seconds(), kitti.timestamps)
+        for timestamp, tf_matrix in zip(timestamps, kitti.T_w_cam0):
+            tf_msg = TFMessage()
+            tf_stamped = TransformStamped()
+            tf_stamped.header.stamp = rospy.Time.from_sec(timestamp)
+            tf_stamped.header.frame_id = 'world'
+            tf_stamped.child_frame_id = 'camera_left'
+            
+            t = tf_matrix[0:3, 3]
+            q = tf.transformations.quaternion_from_matrix(tf_matrix)
+            transform = Transform()
+
+            transform.translation.x = t[0]
+            transform.translation.y = t[1]
+            transform.translation.z = t[2]
+
+            transform.rotation.x = q[0]
+            transform.rotation.y = q[1]
+            transform.rotation.z = q[2]
+            transform.rotation.w = q[3]
+
+            tf_stamped.transform = transform
+            tf_msg.transforms.append(tf_stamped)
+
+            bag.write('/tf', tf_msg, tf_msg.transforms[0].header.stamp)
+          
         
 def save_camera_data(bag, kitti_type, kitti, util, bridge, camera, camera_frame_id, topic, initial_time):
     print("Exporting camera {}".format(camera))
@@ -310,14 +339,13 @@ def main():
 
             # Export
             save_static_transforms(bag, transforms, kitti.timestamps)
-            save_dynamic_tf(bag, kitti)
+            save_dynamic_tf(bag, kitti, args.kitti_type, initial_time=None)
             save_imu_data(bag, kitti, imu_frame_id, imu_topic)
             save_gps_fix_data(bag, kitti, imu_frame_id, gps_fix_topic)
             save_gps_vel_data(bag, kitti, imu_frame_id, gps_vel_topic)
             for camera in cameras:
                 save_camera_data(bag, args.kitti_type, kitti, util, bridge, camera=camera[0], camera_frame_id=camera[1], topic=camera[2], initial_time=None)
             save_velo_data(bag, kitti, velo_frame_id, velo_topic)
-
 
         finally:
             print("## OVERVIEW ##")
@@ -331,19 +359,23 @@ def main():
             print("Usage for odometry dataset: kitti2bag {odom_color, odom_gray} [dir] -s <sequence>")
             sys.exit(1)
             
-        bag = rosbag.Bag("kitti_data_odometry_{}.bag".format(args.kitti_type[5:]), 'w', compression=compression)
+        bag = rosbag.Bag("kitti_data_odometry_{}_sequence_{}.bag".format(args.kitti_type[5:],args.sequence), 'w', compression=compression)
         
         kitti = pykitti.odometry(args.dir, args.sequence)
         if not os.path.exists(kitti.sequence_path):
             print('Path {} does not exists. Exiting.'.format(kitti.sequence_path))
             sys.exit(1)
 
-        kitti.load_calib()        
-        kitti.load_timestamps()  
-        #kitti.load_poses()     
+        kitti.load_calib()         
+        kitti.load_timestamps() 
+             
         if len(kitti.timestamps) == 0:
             print('Dataset is empty? Exiting.')
             sys.exit(1)
+            
+        if args.sequence in odometry_sequences[:11]:
+            print("Odometry dataset sequence {} has ground truth information (poses).".format(args.sequence))
+            kitti.load_poses()
 
         try:
             util = pykitti.utils.read_calib_file(os.path.join(args.dir,'sequences',args.sequence, 'calib.txt'))
@@ -354,6 +386,7 @@ def main():
             elif args.kitti_type.find("color") != -1:
                 used_cameras = cameras[-2:]
 
+            save_dynamic_tf(bag, kitti, args.kitti_type, initial_time=current_epoch)
             for camera in used_cameras:
                 save_camera_data(bag, args.kitti_type, kitti, util, bridge, camera=camera[0], camera_frame_id=camera[1], topic=camera[2], initial_time=current_epoch)
 
