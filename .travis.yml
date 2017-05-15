@@ -125,5 +125,5 @@ script:
   - unzip 2011_09_26_drive_0048_sync.zip
   - wget http://kitti.is.tue.mpg.de/kitti/raw_data/2011_09_26_calib.zip
   - unzip 2011_09_26_calib.zip
-  - kitti2bag 2011_09_26 0048
+  - kitti2bag -t 2011_09_26 -r 0002 raw_synced .
 
