@@ -232,11 +232,6 @@ def main():
         print('Path {} does not exists. Exiting.'.format(kitti.data_path))
         sys.exit(1)
 
-    kitti.load_calib()
-    kitti.load_oxts()
-    kitti.load_timestamps()
-    # kitti.load_velo()
-
     if len(kitti.timestamps) == 0:
         print('Dataset is empty? Exiting.')
         sys.exit(1)
