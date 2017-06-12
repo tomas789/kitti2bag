@@ -136,7 +136,7 @@ def save_camera_data(bag, kitti_type, kitti, util, bridge, camera, camera_frame_
     for dt, filename in bar(iterable):
         image_filename = os.path.join(image_path, filename)
         cv_image = cv2.imread(image_filename)
-        calib.width, calib.height = cv_image.shape[:2]
+        calib.height, calib.width = cv_image.shape[:2]
         if camera in (0, 1):
             cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
         encoding = "mono8" if camera in (0, 1) else "bgr8"
