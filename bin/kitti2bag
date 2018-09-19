@@ -53,7 +53,7 @@ def save_dynamic_tf(bag, kitti, kitti_type, initial_time):
             tf_oxts_transform = TransformStamped()
             tf_oxts_transform.header.stamp = rospy.Time.from_sec(float(timestamp.strftime("%s.%f")))
             tf_oxts_transform.header.frame_id = 'world'
-            tf_oxts_transform.child_frame_id = 'base_link'
+            tf_oxts_transform.child_frame_id = 'imu_link'
 
             transform = (oxts.T_w_imu)
             t = transform[0:3, 3]
@@ -322,7 +322,7 @@ def main():
 
             # tf_static
             transforms = [
-                ('base_link', imu_frame_id, T_base_link_to_imu),
+                (imu_frame_id, 'base_link', inv(T_base_link_to_imu)),
                 (imu_frame_id, velo_frame_id, inv(kitti.calib.T_velo_imu)),
                 (imu_frame_id, cameras[0][1], inv(kitti.calib.T_cam0_imu)),
                 (imu_frame_id, cameras[1][1], inv(kitti.calib.T_cam1_imu)),
