@@ -152,20 +152,26 @@ def save_camera_data(bag, kitti_type, kitti, util, bridge, camera, camera_frame_
         bag.write(topic + topic_ext, image_message, t = image_message.header.stamp)
         bag.write(topic + '/camera_info', calib, t = calib.header.stamp) 
         
-def save_velo_data(bag, kitti, velo_frame_id, topic):
+def save_velo_data(bag, kitti_type, kitti, velo_frame_id, topic, initial_time):
     print("Exporting velodyne data")
-    velo_path = os.path.join(kitti.data_path, 'velodyne_points')
-    velo_data_dir = os.path.join(velo_path, 'data')
-    velo_filenames = sorted(os.listdir(velo_data_dir))
-    with open(os.path.join(velo_path, 'timestamps.txt')) as f:
-        lines = f.readlines()
-        velo_datetimes = []
-        for line in lines:
-            if len(line) == 1:
-                continue
-            dt = datetime.strptime(line[:-4], '%Y-%m-%d %H:%M:%S.%f')
-            velo_datetimes.append(dt)
-
+    if kitti_type.find("raw") != -1:
+        velo_path = os.path.join(kitti.data_path, 'velodyne_points')
+        velo_data_dir = os.path.join(velo_path, 'data')
+        velo_filenames = sorted(os.listdir(velo_data_dir))
+        with open(os.path.join(velo_path, 'timestamps.txt')) as f:
+            lines = f.readlines()
+            velo_datetimes = []
+            for line in lines:
+                if len(line) == 1:
+                    continue
+                dt = datetime.strptime(line[:-4], '%Y-%m-%d %H:%M:%S.%f')
+                velo_datetimes.append(dt)
+    
+    elif kitti_type.find("odom") != -1:
+        velo_data_dir = os.path.join(kitti.sequence_path, 'velodyne')
+        velo_filenames = sorted(os.listdir(velo_data_dir))
+        velo_datetimes = map(lambda x: initial_time + x.total_seconds(), kitti.timestamps)
+    	
     iterable = zip(velo_datetimes, velo_filenames)
     bar = progressbar.ProgressBar()
     for dt, filename in bar(iterable):
@@ -180,7 +186,10 @@ def save_velo_data(bag, kitti, velo_frame_id, topic):
         # create header
         header = Header()
         header.frame_id = velo_frame_id
-        header.stamp = rospy.Time.from_sec(float(datetime.strftime(dt, "%s.%f")))
+        if kitti_type.find("raw") != -1:
+            header.stamp = rospy.Time.from_sec(float(datetime.strftime(dt, "%s.%f")))
+        elif kitti_type.find("odom") != -1:
+            header.stamp = rospy.Time.from_sec(dt)
 
         # fill pcl msg
         fields = [PointField('x', 0, PointField.FLOAT32, 1),
@@ -262,7 +271,7 @@ def main():
     
     parser = argparse.ArgumentParser(description = "Convert KITTI dataset to ROS bag file the easy way!")
     # Accepted argument values
-    kitti_types = ["raw_synced", "odom_color", "odom_gray"]
+    kitti_types = ["raw_synced", "odom_color", "odom_gray", "odom_velo"]
     odometry_sequences = []
     for s in range(22):
         odometry_sequences.append(str(s).zfill(2))
@@ -340,7 +349,7 @@ def main():
             save_gps_vel_data(bag, kitti, imu_frame_id, gps_vel_topic)
             for camera in cameras:
                 save_camera_data(bag, args.kitti_type, kitti, util, bridge, camera=camera[0], camera_frame_id=camera[1], topic=camera[2], initial_time=None)
-            save_velo_data(bag, kitti, velo_frame_id, velo_topic)
+            save_velo_data(bag, args.kitti_type, kitti, velo_frame_id, velo_topic, initial_time=None)
 
         finally:
             print("## OVERVIEW ##")
@@ -351,7 +360,7 @@ def main():
         
         if args.sequence == None:
             print("Sequence option is not given. It is mandatory for odometry dataset.")
-            print("Usage for odometry dataset: kitti2bag {odom_color, odom_gray} [dir] -s <sequence>")
+            print("Usage for odometry dataset: kitti2bag {odom_color, odom_gray, odom_velo} [dir] -s <sequence>")
             sys.exit(1)
             
         bag = rosbag.Bag("kitti_data_odometry_{}_sequence_{}.bag".format(args.kitti_type[5:],args.sequence), 'w', compression=compression)
@@ -360,9 +369,12 @@ def main():
         if not os.path.exists(kitti.sequence_path):
             print('Path {} does not exists. Exiting.'.format(kitti.sequence_path))
             sys.exit(1)
-
-        kitti.load_calib()         
-        kitti.load_timestamps() 
+        
+        ## Actually you don't need to call load_xxx in newer pykitti
+        #if args.kitti_type.find("gray") != -1 or args.kitti_type.find("color") != -1:
+        #    kitti.load_calib()         
+        #
+        #kitti.load_timestamps()
              
         if len(kitti.timestamps) == 0:
             print('Dataset is empty? Exiting.')
@@ -370,7 +382,8 @@ def main():
             
         if args.sequence in odometry_sequences[:11]:
             print("Odometry dataset sequence {} has ground truth information (poses).".format(args.sequence))
-            kitti.load_poses()
+            ## Actually you don't need to call load_xxx in newer pykitti
+            #kitti.load_poses()
 
         try:
             util = pykitti.utils.read_calib_file(os.path.join(args.dir,'sequences',args.sequence, 'calib.txt'))
@@ -380,10 +393,15 @@ def main():
                 used_cameras = cameras[:2]
             elif args.kitti_type.find("color") != -1:
                 used_cameras = cameras[-2:]
-
-            save_dynamic_tf(bag, kitti, args.kitti_type, initial_time=current_epoch)
-            for camera in used_cameras:
-                save_camera_data(bag, args.kitti_type, kitti, util, bridge, camera=camera[0], camera_frame_id=camera[1], topic=camera[2], initial_time=current_epoch)
+            
+            if args.kitti_type.find("gray") != -1 or args.kitti_type.find("color") != -1:
+                save_dynamic_tf(bag, kitti, args.kitti_type, initial_time=current_epoch)
+                for camera in used_cameras:
+                    save_camera_data(bag, args.kitti_type, kitti, util, bridge, camera=camera[0], camera_frame_id=camera[1], topic=camera[2], initial_time=current_epoch)
+            elif args.kitti_type.find("velo") != -1:
+            	velo_frame_id = 'velo_link'
+                velo_topic = '/kitti/velo'
+            	save_velo_data(bag, args.kitti_type, kitti, velo_frame_id, velo_topic, initial_time=current_epoch)
 
         finally:
             print("## OVERVIEW ##")
