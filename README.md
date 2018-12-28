@@ -35,8 +35,8 @@ pip install kitti2bag
 One example is better then thousand words so here it is
 
 ```bash
-$ wget http://kitti.is.tue.mpg.de/kitti/raw_data/2011_09_26_drive_0002/2011_09_26_drive_0002_sync.zip
-$ wget http://kitti.is.tue.mpg.de/kitti/raw_data/2011_09_26_calib.zip
+$ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive_0002/2011_09_26_drive_0002_sync.zip
+$ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_calib.zip
 $ unzip 2011_09_26_drive_0002_sync.zip
 $ unzip 2011_09_26_calib.zip
 $ kitti2bag -t 2011_09_26 -r 0002 raw_synced .
