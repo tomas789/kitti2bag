@@ -90,6 +90,23 @@ That's it. You have file `kitti_2011_09_26_drive_0002_sync.bag` that contains yo
 
 Other source files can be found at [KITTI raw data](http://www.cvlibs.net/datasets/kitti/raw_data.php) page.
 
+### Prefer Docker?
+
+That is easy too. There is a pre-built image `tomas789/kitti2bag`. 
+
+```bash
+$ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive_0002/2011_09_26_drive_0002_sync.zip
+$ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_calib.zip
+$ unzip 2011_09_26_drive_0002_sync.zip
+$ unzip 2011_09_26_calib.zip
+$ docker run -v `pwd`:/data -it kitti2bag -t 2011_09_26 -r 0002 raw_synced /data
+Exporting static transformations
+Exporting time dependent transformations
+...
+```
+
+This might also be a better alternative if you are having troubles installing the package. 
+
 ## Bug reporting, support and feature requests.
 
 I appreciate [pull requests](https://github.com/tomas789/kitti2bag/pulls) with bug fixes and new features. You you want to help with something please use [GitHub issue tracker](https://github.com/tomas789/kitti2bag/issues).
