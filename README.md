@@ -99,7 +99,7 @@ $ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive
 $ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_calib.zip
 $ unzip 2011_09_26_drive_0002_sync.zip
 $ unzip 2011_09_26_calib.zip
-$ docker run -v `pwd`:/data -it kitti2bag -t 2011_09_26 -r 0002 raw_synced /data
+$ docker run -v `pwd`:/data -it tomas789/kitti2bag -t 2011_09_26 -r 0002 raw_synced
 Exporting static transformations
 Exporting time dependent transformations
 ...
