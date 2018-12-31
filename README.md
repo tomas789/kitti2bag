@@ -25,7 +25,7 @@ Thanks to the work of @jnitsch, _kitti2bag_ can now export velodyne laser data a
 
 ## How to install it?
 
-It is very easy! Just run
+It is very easy! On the machine with ROS installed, just run
 ```bash
 pip install kitti2bag
 ```
