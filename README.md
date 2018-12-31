@@ -90,6 +90,10 @@ That's it. You have file `kitti_2011_09_26_drive_0002_sync.bag` that contains yo
 
 Other source files can be found at [KITTI raw data](http://www.cvlibs.net/datasets/kitti/raw_data.php) page.
 
+If you got an error saying something like _command not found_ it means that your python installation is in bad shape. You might try running 
+```python -m kitti2bag -t 2011_09_26 -r 0002 raw_synced .```
+Or maybe use Docker.
+
 ### Prefer Docker?
 
 That is easy too. There is a pre-built image `tomas789/kitti2bag`. 
