@@ -6,8 +6,8 @@ import sys
 try:
     import pykitti
 except ImportError as e:
-    print('Could not load module \'pykitti\'. Please run `pip install pykitti`')
-    sys.exit(1)
+    print('Could not load module \'pykitti\'. Please run `pip install pykitti`', file=sys.stderr)
+    raise
 
 import tf
 import os
