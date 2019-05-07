@@ -89,7 +89,7 @@ def save_dynamic_tf(bag, kitti, dataset_type):
     print("Exporting time dependent transformations")
     if dataset_type == 'raw':
         tf_matrices = [oxt.T_w_imu for oxt in kitti.oxts]
-        child_frame_id = 'base_link'
+        child_frame_id = 'imu_link'
     elif dataset_type == 'odom':
         tf_matrices = kitti.T_w_cam0
         child_frame_id = 'camera_left'
