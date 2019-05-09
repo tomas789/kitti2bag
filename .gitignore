@@ -95,3 +95,5 @@ ENV/
 
 # Temporary files from text editors
 *~
+
+tests/data

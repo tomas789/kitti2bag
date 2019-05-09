@@ -78,9 +78,9 @@ def save_imu_data(bag, kitti, imu_frame_id, topic):
         bag.write(topic, imu, t=imu.header.stamp)
 
 
-def save_dynamic_tf(bag, kitti, tf_matrices, child_frame_id):
+def save_dynamic_tf(bag, timestamps, tf_matrices, child_frame_id):
     print("Exporting time dependent transformations")
-    for timestamp, tf_matrix in zip(kitti.timestamps, tf_matrices):
+    for timestamp, tf_matrix in zip(timestamps, tf_matrices):
         tf_msg = TFMessage()
         tf_stamped = TransformStamped()
         tf_stamped.header.stamp = to_rostime(timestamp)
@@ -231,10 +231,10 @@ def save_gps_vel_data(bag, kitti, gps_frame_id, topic):
         bag.write(topic, twist_msg, t=twist_msg.header.stamp)
 
 
-def convert_kitti_raw(root_dir, date, drive, compression=rosbag.Compression.NONE):
+def convert_kitti_raw(root_dir, date, drive, out_dir='.', compression=rosbag.Compression.NONE):
     drive = str(drive).zfill(4)
     bag_name = "kitti_{}_drive_{}_synced.bag".format(date, drive)
-    bag = rosbag.Bag(bag_name, 'w', compression=compression)
+    bag = rosbag.Bag(os.path.join(out_dir, bag_name), 'w', compression=compression)
 
     kitti = pykitti.raw(root_dir, date, drive)
 
@@ -258,7 +258,7 @@ def convert_kitti_raw(root_dir, date, drive, compression=rosbag.Compression.NONE
         # Export
         save_static_transforms(bag, kitti, imu_frame_id, velo_frame_id)
         imu_tf_matrices = [oxt.T_w_imu for oxt in kitti.oxts]
-        save_dynamic_tf(bag, kitti, imu_tf_matrices, imu_frame_id)
+        save_dynamic_tf(bag, kitti.timestamps, imu_tf_matrices, imu_frame_id)
         save_imu_data(bag, kitti, imu_frame_id, imu_topic)
         save_gps_fix_data(bag, kitti, imu_frame_id, gps_fix_topic)
         save_gps_vel_data(bag, kitti, imu_frame_id, gps_vel_topic)
@@ -274,10 +274,10 @@ def convert_kitti_raw(root_dir, date, drive, compression=rosbag.Compression.NONE
         bag.close()
 
 
-def convert_kitti_odom(root_dir, color_type, sequence, compression=rosbag.Compression.NONE):
+def convert_kitti_odom(root_dir, color_type, sequence, out_dir='.', compression=rosbag.Compression.NONE):
     sequence_str = str(sequence).zfill(2)
     bag_name = "kitti_data_odometry_{}_sequence_{}.bag".format(color_type, sequence_str)
-    bag = rosbag.Bag(bag_name, 'w', compression=compression)
+    bag = rosbag.Bag(os.path.join(out_dir, bag_name), 'w', compression=compression)
 
     kitti = pykitti.odometry(root_dir, sequence_str)
 
@@ -289,19 +289,20 @@ def convert_kitti_odom(root_dir, color_type, sequence, compression=rosbag.Compre
         print('Dataset is empty? Exiting.', file=sys.stderr)
         sys.exit(1)
 
-    current_epoch = timedelta(seconds=datetime.now().timestamp())
-    kitti.timestamps = [timestamp + current_epoch for timestamp in kitti.timestamps]
+    # The odom timestamps are relative, add an arbitrary datetime to make them absolute
+    base_timestamp = datetime(2011, 9, 26, 12, 0, 0)
+    timestamps = [base_timestamp + timestamp for timestamp in kitti.timestamps]
 
     if sequence in range(10):
         print("Odometry dataset sequence {} has ground truth information (poses).".format(sequence_str))
 
     try:
         # Export
-        save_dynamic_tf(bag, kitti, kitti.poses, cameras[0].frame_id)
+        save_dynamic_tf(bag, timestamps, kitti.poses, cameras[0].frame_id)
         camera_nrs = (2, 3) if color_type == 'color' else (0, 1)
         for camera_nr in camera_nrs:
             image_dir = os.path.join(kitti.sequence_path, 'image_{0:01d}'.format(camera_nr))
-            save_camera_data(bag, kitti, cameras[camera_nr], image_dir, kitti.timestamps)
+            save_camera_data(bag, kitti, cameras[camera_nr], image_dir, timestamps)
     finally:
         print("## OVERVIEW ##")
         print(bag)
