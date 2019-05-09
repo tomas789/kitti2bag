@@ -38,7 +38,7 @@ def raw_data():
     if exists(raw_data_dir):
         return params
 
-    os.makedirs(raw_data_dir, exist_ok=True)
+    os.makedirs(raw_data_dir)
     download_and_extract('/raw_data/2011_09_26_drive_0048/2011_09_26_drive_0048_sync.zip', raw_data_dir)
     download_and_extract('/raw_data/2011_09_26_calib.zip', raw_data_dir)
 
@@ -56,7 +56,8 @@ def odom_data(raw_data):
     if exists(odom_data_dir):
         return params
 
-    os.makedirs(DATA_DIR, exist_ok=True)
+    if not exists(DATA_DIR):
+        os.makedirs(DATA_DIR)
     download_and_extract('/data_odometry_calib.zip', DATA_DIR)
     shutil.move(join(DATA_DIR, 'dataset'), odom_data_dir)
 

@@ -1,11 +1,12 @@
 #!env python
 # -*- coding: utf-8 -*-
+from __future__ import division, print_function
 
 import argparse
 import os
 import sys
 from collections import OrderedDict, namedtuple
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import cv2
 import numpy as np
@@ -106,7 +107,7 @@ def save_dynamic_tf(bag, timestamps, tf_matrices, child_frame_id):
         bag.write('/tf', tf_msg, tf_msg.transforms[0].header.stamp)
 
 
-def save_camera_data(bag, kitti, camera: CameraDetails, image_dir, timestamps):
+def save_camera_data(bag, kitti, camera, image_dir, timestamps):
     print("Exporting camera {}".format(camera.nr))
 
     camera_info = CameraInfo()
