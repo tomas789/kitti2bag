@@ -16,5 +16,6 @@ setup(
         'console_scripts': ['kitti2bag=kitti2bag:main'],
     },
     install_requires=['pykitti', 'tqdm'],
+    setup_requires=['pytest-runner'],
     tests_require=['pytest', 'requests', 'six', 'pyyaml']
 )
