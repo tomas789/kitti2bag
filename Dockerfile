@@ -5,7 +5,6 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -y update && apt-get -y upgrade \
   && apt-get -y install \
     ros-${ROS_DISTRO}-cv-bridge \
-    ros-${ROS_DISTRO}-opencv3 \
     ros-${ROS_DISTRO}-tf \
     python-pip python-matplotlib \
   && apt-get -y autoremove && apt-get -y clean && rm -rf /var/lib/apt/lists/*
