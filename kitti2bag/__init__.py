@@ -15,7 +15,6 @@ import rospy
 import sensor_msgs.point_cloud2 as pcl2
 from cv_bridge import CvBridge
 from geometry_msgs.msg import Transform, TransformStamped, TwistStamped
-from pykitti.utils import read_calib_file
 from sensor_msgs.msg import CameraInfo, Imu, NavSatFix, PointField
 from std_msgs.msg import Header
 from tf.transformations import quaternion_from_euler, quaternion_from_matrix
@@ -48,20 +47,15 @@ def read_timestamps(directory):
     return timestamps
 
 
-def read_camera_calibrations(calib_file_path):
-    """Reads camera calibrations from file and groups the info per-camera.
-
-    For example, {'K_01': ...} becomes {1: {'K': ...}}.
-    """
-    calib = read_calib_file(calib_file_path)
-    out = {i: {} for i in range(4)}
-    for key, value in calib.items():
-        if '_' not in key or key[-1] not in '0123':
-            # ignore calib_time and corner_dist
-            continue
-        key, camera_nr = key.rsplit('_', 1)
-        out[int(camera_nr[1])][key] = value
-    return out
+def inv(transform):
+    """Invert rigid body transformation matrix"""
+    R = transform[0:3, 0:3]
+    t = transform[0:3, 3]
+    t_inv = -1 * R.T.dot(t)
+    transform_inv = np.eye(4)
+    transform_inv[0:3, 0:3] = R.T
+    transform_inv[0:3, 3] = t_inv
+    return transform_inv
 
 
 def save_imu_data(bag, kitti, imu_frame_id, topic):
@@ -84,18 +78,8 @@ def save_imu_data(bag, kitti, imu_frame_id, topic):
         bag.write(topic, imu, t=imu.header.stamp)
 
 
-def save_dynamic_tf(bag, kitti, dataset_type):
-    import utm
+def save_dynamic_tf(bag, kitti, tf_matrices, child_frame_id):
     print("Exporting time dependent transformations")
-    if dataset_type == 'raw':
-        tf_matrices = [oxt.T_w_imu for oxt in kitti.oxts]
-        child_frame_id = 'imu_link'
-    elif dataset_type == 'odom':
-        tf_matrices = kitti.T_w_cam0
-        child_frame_id = 'camera_left'
-    else:
-        raise ValueError()
-
     for timestamp, tf_matrix in zip(kitti.timestamps, tf_matrices):
         tf_msg = TFMessage()
         tf_stamped = TransformStamped()
@@ -122,32 +106,18 @@ def save_dynamic_tf(bag, kitti, dataset_type):
         bag.write('/tf', tf_msg, tf_msg.transforms[0].header.stamp)
 
 
-def save_camera_data(bag, kitti, dataset_type, calib, camera: CameraDetails):
+def save_camera_data(bag, kitti, camera: CameraDetails, image_dir, timestamps):
     print("Exporting camera {}".format(camera.nr))
+
     camera_info = CameraInfo()
     camera_info.header.frame_id = camera.frame_id
-
-    if dataset_type == 'raw':
-        camera_dir = os.path.join(kitti.data_path, 'image_{0:02d}'.format(camera.nr))
-        image_dir = os.path.join(camera_dir, 'data')
-        image_datetimes = read_timestamps(camera_dir)
-
-        camera_info.distortion_model = 'plumb_bob'
-        camera_info.K = calib['K']
-        camera_info.R = calib['R']
-        camera_info.P = calib['P_rect']
-    elif dataset_type == 'odom':
-        image_dir = os.path.join(kitti.sequence_path, 'image_{0:01d}'.format(camera.nr))
-        image_datetimes = kitti.timestamps
-
-        camera_info.P = calib['P']
-    else:
-        raise ValueError()
+    camera_info.K = list(getattr(kitti.calib, 'K_cam{}'.format(camera.nr)).flat)
+    camera_info.P = list(getattr(kitti.calib, 'P_rect_{}0'.format(camera.nr)).flat)
 
     cv_bridge = CvBridge()
 
     image_filenames = sorted(os.listdir(image_dir))
-    for timestamp, filename in tqdm(list(zip(image_datetimes, image_filenames))):
+    for timestamp, filename in tqdm(list(zip(timestamps, image_filenames))):
         image_filename = os.path.join(image_dir, filename)
         cv_image = cv2.imread(image_filename, cv2.IMREAD_UNCHANGED)
         camera_info.height, camera_info.width = cv_image.shape[:2]
@@ -206,17 +176,6 @@ def get_static_transform(from_frame_id, to_frame_id, transform):
     tf_msg.transform.rotation.z = float(q[2])
     tf_msg.transform.rotation.w = float(q[3])
     return tf_msg
-
-
-def inv(transform):
-    """Invert rigid body transformation matrix"""
-    R = transform[0:3, 0:3]
-    t = transform[0:3, 3]
-    t_inv = -1 * R.T.dot(t)
-    transform_inv = np.eye(4)
-    transform_inv[0:3, 0:3] = R.T
-    transform_inv[0:3, 3] = t_inv
-    return transform_inv
 
 
 def save_static_transforms(bag, kitti, imu_frame_id, velo_frame_id):
@@ -296,16 +255,18 @@ def convert_kitti_raw(root_dir, date, drive, compression=rosbag.Compression.NONE
         velo_frame_id = 'velo_link'
         velo_topic = '/kitti/velo'
 
-        calibrations = read_camera_calibrations(os.path.join(kitti.calib_path, 'calib_cam_to_cam.txt'))
-
         # Export
         save_static_transforms(bag, kitti, imu_frame_id, velo_frame_id)
-        save_dynamic_tf(bag, kitti, 'raw')
+        imu_tf_matrices = [oxt.T_w_imu for oxt in kitti.oxts]
+        save_dynamic_tf(bag, kitti, imu_tf_matrices, imu_frame_id)
         save_imu_data(bag, kitti, imu_frame_id, imu_topic)
         save_gps_fix_data(bag, kitti, imu_frame_id, gps_fix_topic)
         save_gps_vel_data(bag, kitti, imu_frame_id, gps_vel_topic)
         for camera_nr in cameras:
-            save_camera_data(bag, kitti, 'raw', calibrations[camera_nr], cameras[camera_nr])
+            camera_dir = os.path.join(kitti.data_path, 'image_{0:02d}'.format(camera_nr))
+            image_dir = os.path.join(camera_dir, 'data')
+            timestamps = read_timestamps(camera_dir)
+            save_camera_data(bag, kitti, cameras[camera_nr], image_dir, timestamps)
         save_velo_data(bag, kitti, velo_frame_id, velo_topic)
     finally:
         print("## OVERVIEW ##")
@@ -335,13 +296,12 @@ def convert_kitti_odom(root_dir, color_type, sequence, compression=rosbag.Compre
         print("Odometry dataset sequence {} has ground truth information (poses).".format(sequence_str))
 
     try:
-        calibrations = read_camera_calibrations(os.path.join(kitti.sequence_path, 'calib.txt'))
-
         # Export
-        save_dynamic_tf(bag, kitti, 'odom')
+        save_dynamic_tf(bag, kitti, kitti.poses, cameras[0].frame_id)
         camera_nrs = (2, 3) if color_type == 'color' else (0, 1)
         for camera_nr in camera_nrs:
-            save_camera_data(bag, kitti, 'odom', calibrations[camera_nr], cameras[camera_nr])
+            image_dir = os.path.join(kitti.sequence_path, 'image_{0:01d}'.format(camera_nr))
+            save_camera_data(bag, kitti, cameras[camera_nr], image_dir, kitti.timestamps)
     finally:
         print("## OVERVIEW ##")
         print(bag)
