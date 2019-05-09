@@ -354,5 +354,8 @@ def main():
         convert_kitti_odom(args.dir, color_type, args.sequence, args.compression)
 
 
+# Disable tqdm background monitor which does not behave nicely with pytest
+tqdm.monitor_interval = 0
+
 if __name__ == '__main__':
     main()
