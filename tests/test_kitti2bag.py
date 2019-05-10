@@ -6,8 +6,12 @@ from zipfile import ZipFile
 import pytest
 import requests
 import rosbag
+import tqdm
 import yaml
 from six import BytesIO
+
+# Disable tqdm background monitor which does not exit cleanly with pytest in python 2
+tqdm.monitor_interval = 0
 
 from kitti2bag import convert_kitti_odom, convert_kitti_raw
 

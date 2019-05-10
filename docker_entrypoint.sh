@@ -7,4 +7,4 @@ set --
 
 # setup ros environment
 source "/opt/ros/$ROS_DISTRO/setup.bash"
-exec kitti2bag $args
+exec "kitti2bag $args"

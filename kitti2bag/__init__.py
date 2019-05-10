@@ -107,7 +107,7 @@ def save_dynamic_tf(bag, timestamps, tf_matrices, child_frame_id):
         bag.write('/tf', tf_msg, tf_msg.transforms[0].header.stamp)
 
 
-def save_camera_data(bag, kitti, camera, image_dir, timestamps):
+def save_camera_data(bag, kitti, camera, timestamps):
     print("Exporting camera {}".format(camera.nr))
 
     camera_info = CameraInfo()
@@ -117,10 +117,9 @@ def save_camera_data(bag, kitti, camera, image_dir, timestamps):
 
     cv_bridge = CvBridge()
 
-    image_filenames = sorted(os.listdir(image_dir))
-    for timestamp, filename in tqdm(list(zip(timestamps, image_filenames))):
-        image_filename = os.path.join(image_dir, filename)
-        cv_image = cv2.imread(image_filename, cv2.IMREAD_UNCHANGED)
+    image_paths = getattr(kitti, 'cam{}_files'.format(camera.nr))
+    for timestamp, image_path in tqdm(list(zip(timestamps, image_paths))):
+        cv_image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
         camera_info.height, camera_info.width = cv_image.shape[:2]
         encoding = 'bgr8' if camera.is_rgb else 'mono8'
         image_message = cv_bridge.cv2_to_imgmsg(cv_image, encoding=encoding)
@@ -135,15 +134,11 @@ def save_camera_data(bag, kitti, camera, image_dir, timestamps):
 def save_velo_data(bag, kitti, velo_frame_id, topic):
     print("Exporting velodyne data")
     velo_path = os.path.join(kitti.data_path, 'velodyne_points')
-    velo_data_dir = os.path.join(velo_path, 'data')
-    velo_filenames = sorted(os.listdir(velo_data_dir))
     velo_datetimes = read_timestamps(velo_path)
 
-    for dt, filename in tqdm(list(zip(velo_datetimes, velo_filenames))):
+    for dt, velo_filename in tqdm(list(zip(velo_datetimes, kitti.velo_files))):
         if dt is None:
             continue
-
-        velo_filename = os.path.join(velo_data_dir, filename)
 
         # read binary data
         scan = (np.fromfile(velo_filename, dtype=np.float32)).reshape(-1, 4)
@@ -234,9 +229,6 @@ def save_gps_vel_data(bag, kitti, gps_frame_id, topic):
 
 def convert_kitti_raw(root_dir, date, drive, out_dir='.', compression=rosbag.Compression.NONE):
     drive = str(drive).zfill(4)
-    bag_name = "kitti_{}_drive_{}_synced.bag".format(date, drive)
-    bag = rosbag.Bag(os.path.join(out_dir, bag_name), 'w', compression=compression)
-
     kitti = pykitti.raw(root_dir, date, drive)
 
     if not os.path.exists(kitti.data_path):
@@ -247,16 +239,17 @@ def convert_kitti_raw(root_dir, date, drive, out_dir='.', compression=rosbag.Com
         print('Dataset is empty? Exiting.', file=sys.stderr)
         sys.exit(1)
 
-    try:
-        # IMU
-        imu_frame_id = 'imu_link'
-        imu_topic = '/kitti/oxts/imu'
-        gps_fix_topic = '/kitti/oxts/gps/fix'
-        gps_vel_topic = '/kitti/oxts/gps/vel'
-        velo_frame_id = 'velo_link'
-        velo_topic = '/kitti/velo'
+    # IMU
+    imu_frame_id = 'imu_link'
+    imu_topic = '/kitti/oxts/imu'
+    gps_fix_topic = '/kitti/oxts/gps/fix'
+    gps_vel_topic = '/kitti/oxts/gps/vel'
+    velo_frame_id = 'velo_link'
+    velo_topic = '/kitti/velo'
 
-        # Export
+    # Export
+    bag_name = "kitti_{}_drive_{}_synced.bag".format(date, drive)
+    with rosbag.Bag(os.path.join(out_dir, bag_name), 'w', compression=compression) as bag:
         save_static_transforms(bag, kitti, imu_frame_id, velo_frame_id)
         imu_tf_matrices = [oxt.T_w_imu for oxt in kitti.oxts]
         save_dynamic_tf(bag, kitti.timestamps, imu_tf_matrices, imu_frame_id)
@@ -265,21 +258,16 @@ def convert_kitti_raw(root_dir, date, drive, out_dir='.', compression=rosbag.Com
         save_gps_vel_data(bag, kitti, imu_frame_id, gps_vel_topic)
         for camera_nr in cameras:
             camera_dir = os.path.join(kitti.data_path, 'image_{0:02d}'.format(camera_nr))
-            image_dir = os.path.join(camera_dir, 'data')
             timestamps = read_timestamps(camera_dir)
-            save_camera_data(bag, kitti, cameras[camera_nr], image_dir, timestamps)
+            save_camera_data(bag, kitti, cameras[camera_nr], timestamps)
         save_velo_data(bag, kitti, velo_frame_id, velo_topic)
-    finally:
+
         print("## OVERVIEW ##")
         print(bag)
-        bag.close()
 
 
 def convert_kitti_odom(root_dir, color_type, sequence, out_dir='.', compression=rosbag.Compression.NONE):
     sequence_str = str(sequence).zfill(2)
-    bag_name = "kitti_data_odometry_{}_sequence_{}.bag".format(color_type, sequence_str)
-    bag = rosbag.Bag(os.path.join(out_dir, bag_name), 'w', compression=compression)
-
     kitti = pykitti.odometry(root_dir, sequence_str)
 
     if not os.path.exists(kitti.sequence_path):
@@ -294,20 +282,18 @@ def convert_kitti_odom(root_dir, color_type, sequence, out_dir='.', compression=
     base_timestamp = datetime(2011, 9, 26, 12, 0, 0)
     timestamps = [base_timestamp + timestamp for timestamp in kitti.timestamps]
 
-    if sequence in range(10):
+    if 0 <= sequence < 10:
         print("Odometry dataset sequence {} has ground truth information (poses).".format(sequence_str))
 
-    try:
-        # Export
+    # Export
+    bag_name = "kitti_data_odometry_{}_sequence_{}.bag".format(color_type, sequence_str)
+    with rosbag.Bag(os.path.join(out_dir, bag_name), 'w', compression=compression) as bag:
         save_dynamic_tf(bag, timestamps, kitti.poses, cameras[0].frame_id)
         camera_nrs = (2, 3) if color_type == 'color' else (0, 1)
         for camera_nr in camera_nrs:
-            image_dir = os.path.join(kitti.sequence_path, 'image_{0:01d}'.format(camera_nr))
-            save_camera_data(bag, kitti, cameras[camera_nr], image_dir, timestamps)
-    finally:
+            save_camera_data(bag, kitti, cameras[camera_nr], timestamps)
         print("## OVERVIEW ##")
         print(bag)
-        bag.close()
 
 
 def main():
@@ -342,7 +328,7 @@ def main():
             print("Usage for raw dataset: kitti2bag raw_synced [dir] -t <date> -r <drive>", file=sys.stderr)
             sys.exit(1)
 
-        convert_kitti_raw(args.dir, args.date, args.drive, args.compression)
+        convert_kitti_raw(args.dir, args.date, args.drive, compression=args.compression)
 
     elif kitti_type[0] == 'odom':
         if args.sequence is None:
@@ -351,11 +337,8 @@ def main():
             sys.exit(1)
 
         color_type = kitti_type[1]
-        convert_kitti_odom(args.dir, color_type, args.sequence, args.compression)
+        convert_kitti_odom(args.dir, color_type, args.sequence, compression=args.compression)
 
-
-# Disable tqdm background monitor which does not behave nicely with pytest
-tqdm.monitor_interval = 0
 
 if __name__ == '__main__':
     main()
