@@ -17,5 +17,5 @@ setup(
     },
     install_requires=['pykitti', 'tqdm', 'click'],
     setup_requires=['pytest-runner'],
-    tests_require=['pytest', 'requests', 'six', 'pyyaml']
+    tests_require=['pytest', 'requests', 'six', 'pyyaml', 'click>=7']
 )
