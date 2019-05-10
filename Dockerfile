@@ -1,5 +1,5 @@
 ARG ROS_DISTRO=kinetic
-FROM ros:${ROS_DISTRO}-ros-core
+FROM ros:${ROS_DISTRO}-perception
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -y update \
@@ -7,7 +7,7 @@ RUN apt-get -y update \
   && apt-get -y install \
     ros-${ROS_DISTRO}-cv-bridge \
     ros-${ROS_DISTRO}-tf \
-    python-pip python-matplotlib \
+    python-pip \
   && apt-get -y autoremove && apt-get -y clean && rm -rf /var/lib/apt/lists/*
 # setup.py will fail on older Ubuntu distros if pip and setuptools are not updated
 RUN python -m pip install --upgrade pip setuptools \
@@ -22,4 +22,3 @@ RUN pip install /kitti2bag
 WORKDIR /data
 
 ENTRYPOINT ["/kitti2bag/docker_entrypoint.sh"]
-
