@@ -231,9 +231,25 @@ compression_choices = [rosbag.Compression.NONE, rosbag.Compression.BZ2, rosbag.C
 
 
 @click.group()
+@click.help_option('-h', '--help')
 def cli():
     """Convert KITTI dataset to ROS bag file the easy way!"""
     pass
+
+
+def common_options(f):
+    f = click.option("-i", "--input-dir", required=False, default='.', show_default=True,
+                     type=click.Path(exists=True, dir_okay=True, file_okay=False),
+                     help="base directory of the dataset")(f)
+    f = click.option("-o", "--output-dir", required=False, default='.', show_default=True,
+                     type=click.Path(exists=True, dir_okay=True, file_okay=False),
+                     help="output directory for the created bag file")(f)
+    f = click.option("--compression", required=False,
+                     type=click.Choice(compression_choices),
+                     default=rosbag.Compression.NONE, show_default=True,
+                     help="which compression to use for the created bag")(f)
+    f = click.help_option('-h', '--help')(f)
+    return f
 
 
 @cli.command('raw')
@@ -241,17 +257,7 @@ def cli():
               help="date of the raw dataset (i.e. 2011_09_26)")
 @click.option("-r", "--drive", required=True, type=int,
               help="drive number of the raw dataset (i.e. 1)")
-@click.option("-i", "--input-dir", required=False, default='.', show_default=True,
-              type=click.Path(exists=True, dir_okay=True, file_okay=False),
-              help="base directory of the dataset")
-@click.option("-o", "--output-dir", required=False, default='.', show_default=True,
-              type=click.Path(exists=True, dir_okay=True, file_okay=False),
-              help="output directory for the created bag file")
-@click.option("--compression", required=False,
-              type=click.Choice(compression_choices),
-              default=rosbag.Compression.NONE, show_default=True,
-              help="which compression to use for the created bag")
-@click.help_option('-h', '--help')
+@common_options
 def convert_raw(date, drive, input_dir='.', output_dir='.', compression=rosbag.Compression.NONE):
     """Convert a raw synced+rectified KITTI dataset to a bag"""
     drive = str(drive).zfill(4)
@@ -293,17 +299,7 @@ def convert_raw(date, drive, input_dir='.', output_dir='.', compression=rosbag.C
               help="sequence number")
 @click.option("-c", "--color", type=click.Choice(['gray', 'color', 'all']), required=True,
               help="which camera images to include in the bag")
-@click.option("-i", "--input-dir", required=False, default='.', show_default=True,
-              type=click.Path(exists=True, dir_okay=True, file_okay=False),
-              help="base directory of the dataset")
-@click.option("-o", "--output-dir", required=False, default='.', show_default=True,
-              type=click.Path(exists=True, dir_okay=True, file_okay=False),
-              help="output directory for the created bag file")
-@click.option("--compression", required=False,
-              type=click.Choice(compression_choices),
-              default=rosbag.Compression.NONE, show_default=True,
-              help="which compression to use for the created bag")
-@click.help_option('-h', '--help')
+@common_options
 def convert_odom(sequence, color, input_dir='.', output_dir='.', compression=rosbag.Compression.NONE):
     """Convert an odometry KITTI dataset to a bag"""
     sequence_str = str(sequence).zfill(2)
