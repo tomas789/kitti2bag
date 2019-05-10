@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
 
-import argparse
 import os
 import sys
 from collections import OrderedDict, namedtuple
 from datetime import datetime
 
+import click
 import cv2
 import numpy as np
 import pykitti
@@ -227,13 +227,35 @@ def save_gps_vel_data(bag, kitti, gps_frame_id, topic):
         bag.write(topic, twist_msg, t=twist_msg.header.stamp)
 
 
-def convert_kitti_raw(root_dir, date, drive, out_dir='.', compression=rosbag.Compression.NONE):
-    drive = str(drive).zfill(4)
-    kitti = pykitti.raw(root_dir, date, drive)
+compression_choices = [rosbag.Compression.NONE, rosbag.Compression.BZ2, rosbag.Compression.LZ4]
 
-    if not os.path.exists(kitti.data_path):
-        print('Path {} does not exists. Exiting.'.format(kitti.data_path), file=sys.stderr)
-        sys.exit(1)
+
+@click.group()
+def cli():
+    """Convert KITTI dataset to ROS bag file the easy way!"""
+    pass
+
+
+@cli.command('raw')
+@click.option("-t", "--date", required=True, metavar='DATE',
+              help="date of the raw dataset (i.e. 2011_09_26)")
+@click.option("-r", "--drive", required=True, type=int,
+              help="drive number of the raw dataset (i.e. 1)")
+@click.option("-i", "--input-dir", required=False, default='.', show_default=True,
+              type=click.Path(exists=True, dir_okay=True, file_okay=False),
+              help="base directory of the dataset")
+@click.option("-o", "--output-dir", required=False, default='.', show_default=True,
+              type=click.Path(exists=True, dir_okay=True, file_okay=False),
+              help="output directory for the created bag file")
+@click.option("--compression", required=False,
+              type=click.Choice(compression_choices),
+              default=rosbag.Compression.NONE, show_default=True,
+              help="which compression to use for the created bag")
+@click.help_option('-h', '--help')
+def convert_raw(date, drive, input_dir='.', output_dir='.', compression=rosbag.Compression.NONE):
+    """Convert a raw synced+rectified KITTI dataset to a bag"""
+    drive = str(drive).zfill(4)
+    kitti = pykitti.raw(input_dir, date, drive)
 
     if len(kitti.timestamps) == 0:
         print('Dataset is empty? Exiting.', file=sys.stderr)
@@ -249,7 +271,7 @@ def convert_kitti_raw(root_dir, date, drive, out_dir='.', compression=rosbag.Com
 
     # Export
     bag_name = "kitti_{}_drive_{}_synced.bag".format(date, drive)
-    with rosbag.Bag(os.path.join(out_dir, bag_name), 'w', compression=compression) as bag:
+    with rosbag.Bag(os.path.join(output_dir, bag_name), 'w', compression=compression) as bag:
         save_static_transforms(bag, kitti, imu_frame_id, velo_frame_id)
         imu_tf_matrices = [oxt.T_w_imu for oxt in kitti.oxts]
         save_dynamic_tf(bag, kitti.timestamps, imu_tf_matrices, imu_frame_id)
@@ -266,13 +288,26 @@ def convert_kitti_raw(root_dir, date, drive, out_dir='.', compression=rosbag.Com
         print(bag)
 
 
-def convert_kitti_odom(root_dir, color_type, sequence, out_dir='.', compression=rosbag.Compression.NONE):
+@cli.command('odom')
+@click.option("-s", "--sequence", type=click.IntRange(0, 21), metavar='0...21', required=True,
+              help="sequence number")
+@click.option("-c", "--color", type=click.Choice(['gray', 'color', 'all']), required=True,
+              help="which camera images to include in the bag")
+@click.option("-i", "--input-dir", required=False, default='.', show_default=True,
+              type=click.Path(exists=True, dir_okay=True, file_okay=False),
+              help="base directory of the dataset")
+@click.option("-o", "--output-dir", required=False, default='.', show_default=True,
+              type=click.Path(exists=True, dir_okay=True, file_okay=False),
+              help="output directory for the created bag file")
+@click.option("--compression", required=False,
+              type=click.Choice(compression_choices),
+              default=rosbag.Compression.NONE, show_default=True,
+              help="which compression to use for the created bag")
+@click.help_option('-h', '--help')
+def convert_odom(sequence, color, input_dir='.', output_dir='.', compression=rosbag.Compression.NONE):
+    """Convert an odometry KITTI dataset to a bag"""
     sequence_str = str(sequence).zfill(2)
-    kitti = pykitti.odometry(root_dir, sequence_str)
-
-    if not os.path.exists(kitti.sequence_path):
-        print('Path {} does not exists. Exiting.'.format(kitti.sequence_path), file=sys.stderr)
-        sys.exit(1)
+    kitti = pykitti.odometry(input_dir, sequence_str)
 
     if len(kitti.timestamps) == 0:
         print('Dataset is empty? Exiting.', file=sys.stderr)
@@ -285,60 +320,22 @@ def convert_kitti_odom(root_dir, color_type, sequence, out_dir='.', compression=
     if 0 <= sequence < 10:
         print("Odometry dataset sequence {} has ground truth information (poses).".format(sequence_str))
 
+    if color == 'color':
+        camera_nrs = (2, 3)
+    elif color == 'gray':
+        camera_nrs = (0, 1)
+    else:
+        camera_nrs = list(cameras)
+
     # Export
-    bag_name = "kitti_data_odometry_{}_sequence_{}.bag".format(color_type, sequence_str)
-    with rosbag.Bag(os.path.join(out_dir, bag_name), 'w', compression=compression) as bag:
+    bag_name = "kitti_data_odometry_{}_sequence_{}.bag".format(color, sequence_str)
+    with rosbag.Bag(os.path.join(output_dir, bag_name), 'w', compression=compression) as bag:
         save_dynamic_tf(bag, timestamps, kitti.poses, cameras[0].frame_id)
-        camera_nrs = (2, 3) if color_type == 'color' else (0, 1)
         for camera_nr in camera_nrs:
             save_camera_data(bag, kitti, cameras[camera_nr], timestamps)
         print("## OVERVIEW ##")
         print(bag)
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Convert KITTI dataset to ROS bag file the easy way!")
-    # Accepted argument values
-    kitti_types = ["raw_synced", "odom_color", "odom_gray"]
-    compression_choices = [rosbag.Compression.NONE, rosbag.Compression.BZ2, rosbag.Compression.LZ4]
-
-    parser.add_argument("kitti_type", choices=kitti_types,
-                        help="KITTI dataset type")
-    parser.add_argument("dir", nargs="?", default=os.getcwd(),
-                        help="base directory of the dataset, if no directory passed the default is current working directory")
-    parser.add_argument("-t", "--date",
-                        help="date of the raw dataset (i.e. 2011_09_26), option is only for RAW datasets.")
-    parser.add_argument("-r", "--drive", type=int,
-                        help="drive number of the raw dataset (i.e. 0001), option is only for RAW datasets.")
-    parser.add_argument("-s", "--sequence", type=int, choices=range(22), metavar='SEQUENCE',
-                        help="sequence of the odometry dataset (between 00 - 21), option is only for ODOMETRY datasets.")
-    parser.add_argument("-c", "--compression", choices=compression_choices, default=rosbag.Compression.NONE,
-                        help="which compression to use for the created bag")
-    args = parser.parse_args()
-
-    kitti_type = args.kitti_type.split('_')
-
-    if kitti_type[0] == 'raw':
-        if args.date is None:
-            print("Date option is not given. It is mandatory for raw dataset.", file=sys.stderr)
-            print("Usage for raw dataset: kitti2bag raw_synced [dir] -t <date> -r <drive>", file=sys.stderr)
-            sys.exit(1)
-        if args.drive is None:
-            print("Drive option is not given. It is mandatory for raw dataset.", file=sys.stderr)
-            print("Usage for raw dataset: kitti2bag raw_synced [dir] -t <date> -r <drive>", file=sys.stderr)
-            sys.exit(1)
-
-        convert_kitti_raw(args.dir, args.date, args.drive, compression=args.compression)
-
-    elif kitti_type[0] == 'odom':
-        if args.sequence is None:
-            print("Sequence option is not given. It is mandatory for odometry dataset.", file=sys.stderr)
-            print("Usage for odometry dataset: kitti2bag {odom_color, odom_gray} [dir] -s <sequence>", file=sys.stderr)
-            sys.exit(1)
-
-        color_type = kitti_type[1]
-        convert_kitti_odom(args.dir, color_type, args.sequence, compression=args.compression)
-
-
 if __name__ == '__main__':
-    main()
+    cli()

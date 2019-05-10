@@ -8,12 +8,13 @@ import requests
 import rosbag
 import tqdm
 import yaml
+from click.testing import CliRunner
 from six import BytesIO
 
 # Disable tqdm background monitor which does not exit cleanly with pytest in python 2
 tqdm.monitor_interval = 0
 
-from kitti2bag import convert_kitti_odom, convert_kitti_raw
+from kitti2bag import cli
 
 TESTS_DIR = dirname(abspath(__file__))
 DATA_DIR = join(TESTS_DIR, 'data')
@@ -85,12 +86,19 @@ def clean_bag_info(info):
 
 
 def test_raw_synced(raw_data, tmpdir):
-    convert_kitti_raw(
-        root_dir=raw_data['dir'],
-        date=raw_data['date'],
-        drive=raw_data['drive'],
-        out_dir=str(tmpdir)
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, [
+            'raw',
+            '--date', raw_data['date'],
+            '--drive', raw_data['drive'],
+            '--input-dir', raw_data['dir'],
+            '--output-dir', str(tmpdir),
+        ],
+        catch_exceptions=False
     )
+    print(result.stdout_bytes.decode('utf8'))
+    assert result.exit_code == 0
 
     expected_bagfile = tmpdir.join('kitti_2011_09_26_drive_0048_synced.bag')
     assert expected_bagfile.exists()
@@ -183,12 +191,19 @@ def test_raw_synced(raw_data, tmpdir):
 
 @pytest.mark.parametrize('color', ['gray', 'color'])
 def test_odom(odom_data, tmpdir, color):
-    convert_kitti_odom(
-        root_dir=odom_data['dir'],
-        color_type=color,
-        sequence=odom_data['sequence'],
-        out_dir=str(tmpdir)
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, [
+            'odom',
+            '--sequence', odom_data['sequence'],
+            '--color', color,
+            '--input-dir', odom_data['dir'],
+            '--output-dir', str(tmpdir),
+        ],
+        catch_exceptions=False
     )
+    print(result.stdout_bytes.decode('utf8'))
+    assert result.exit_code == 0
 
     expected_bagfile = tmpdir.join('kitti_data_odometry_{}_sequence_04.bag'.format(color))
     assert expected_bagfile.exists()

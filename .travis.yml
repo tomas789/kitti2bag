@@ -16,5 +16,5 @@ script:
 - docker run --entrypoint '/bin/bash' kitti2bag -c '
     source /opt/ros/$ROS_DISTRO/setup.bash &&
     cd /kitti2bag &&
-    python setup.py test --addopts=-svv
+    PYTHONIOENCODING=utf-8 python setup.py test --addopts=-svv
   '

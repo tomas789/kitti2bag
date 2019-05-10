@@ -13,9 +13,9 @@ setup(
     keywords=['dataset', 'ros', 'rosbag', 'kitti'],
     packages=['kitti2bag'],
     entry_points={
-        'console_scripts': ['kitti2bag=kitti2bag:main'],
+        'console_scripts': ['kitti2bag=kitti2bag:cli'],
     },
-    install_requires=['pykitti', 'tqdm'],
+    install_requires=['pykitti', 'tqdm', 'click'],
     setup_requires=['pytest-runner'],
     tests_require=['pytest', 'requests', 'six', 'pyyaml']
 )
