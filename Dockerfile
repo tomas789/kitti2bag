@@ -9,14 +9,13 @@ RUN apt-get -y update \
     ros-${ROS_DISTRO}-tf \
     python-pip python-matplotlib \
   && apt-get -y autoremove && apt-get -y clean && rm -rf /var/lib/apt/lists/*
-RUN python -m pip install --upgrade \
-  # setup.py will fail on older Ubuntu distros if pip and setuptools are not updated
-  pip \
-  setuptools \
-  # Upgrade numpy for pykitti's pandas requirement
-  numpy \
-  # Use the development version since a Python 2 incompatibility is not yet fixed in 0.3.1
-  git+https://github.com/utiasSTARS/pykitti.git
+# setup.py will fail on older Ubuntu distros if pip and setuptools are not updated
+RUN python -m pip install --upgrade pip setuptools \
+  && pip install --upgrade \
+    # Upgrade numpy for pykitti's pandas requirement
+    numpy \
+    # Use the development version since a Python 2 incompatibility is not yet fixed in 0.3.1
+    git+https://github.com/utiasSTARS/pykitti.git
 COPY . /kitti2bag
 RUN pip install /kitti2bag
 

@@ -9,11 +9,16 @@ matrix:
     - env: ROS_DISTRO=lunar
     - env: ROS_DISTRO=melodic
 
+cache:
+  directories:
+    # Avoid re-downloading the test data each time
+    - $TRAVIS_BUILD_DIR/testdata
+
 before_install:
 - docker build . -t kitti2bag --build-arg ROS_DISTRO=${ROS_DISTRO}
 
 script:
-- docker run --entrypoint '/bin/bash' kitti2bag -c '
+- docker run -v $TRAVIS_BUILD_DIR/testdata:/kitti2bag/tests/data --entrypoint '/bin/bash' kitti2bag -c '
     source /opt/ros/$ROS_DISTRO/setup.bash &&
     cd /kitti2bag &&
     PYTHONIOENCODING=utf-8 python setup.py test --addopts=-svv
