@@ -122,7 +122,7 @@ def test_raw_synced(raw_data, tmpdir):
              'type': 'sensor_msgs/CameraInfo'},
             {'frequency': 9.6728,
              'messages': 22,
-             'topic': '/kitti/camera_color/left/image_rect',
+             'topic': '/kitti/camera_color/left/image_rect_color',
              'type': 'sensor_msgs/Image'},
             {'frequency': 9.6725,
              'messages': 22,
@@ -130,7 +130,7 @@ def test_raw_synced(raw_data, tmpdir):
              'type': 'sensor_msgs/CameraInfo'},
             {'frequency': 9.6725,
              'messages': 22,
-             'topic': '/kitti/camera_color/right/image_rect',
+             'topic': '/kitti/camera_color/right/image_rect_color',
              'type': 'sensor_msgs/Image'},
             {'frequency': 9.6725,
              'messages': 22,
@@ -226,7 +226,8 @@ def test_odom(odom_data, tmpdir, color):
              'type': 'sensor_msgs/CameraInfo'},
             {'frequency': 9.6034,
              'messages': 22,
-             'topic': '/kitti/camera_{}/left/image_rect'.format(color),
+             'topic': '/kitti/camera_{}/left/image_rect{}'.format(
+                 color, '' if color == 'gray' else '_color'),
              'type': 'sensor_msgs/Image'},
             {'frequency': 9.6034,
              'messages': 22,
@@ -234,7 +235,8 @@ def test_odom(odom_data, tmpdir, color):
              'type': 'sensor_msgs/CameraInfo'},
             {'frequency': 9.6034,
              'messages': 22,
-             'topic': '/kitti/camera_{}/right/image_rect'.format(color),
+             'topic': '/kitti/camera_{}/right/image_rect{}'.format(
+                 color, '' if color == 'gray' else '_color'),
              'type': 'sensor_msgs/Image'}
         ],
         'types': [

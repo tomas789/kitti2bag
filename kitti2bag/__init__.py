@@ -29,6 +29,9 @@ cameras = OrderedDict((c.nr, c) for c in [
     CameraDetails(2, 'camera_color_left', '/kitti/camera_color/left', True),
     CameraDetails(3, 'camera_color_right', '/kitti/camera_color/right', True)
 ])
+# All of the cameras share the same camera #0 frame after rectification,
+# which is the case for both the raw synced and odometry datasets.
+rectified_camera_frame_id = cameras[0].frame_id
 
 
 def to_rostime(dt):
@@ -111,9 +114,12 @@ def save_camera_data(bag, kitti, camera, timestamps):
     print("Exporting camera {}".format(camera.nr))
 
     camera_info = CameraInfo()
-    camera_info.header.frame_id = camera.frame_id
+    camera_info.header.frame_id = rectified_camera_frame_id
     camera_info.K = list(getattr(kitti.calib, 'K_cam{}'.format(camera.nr)).flat)
     camera_info.P = list(getattr(kitti.calib, 'P_rect_{}0'.format(camera.nr)).flat)
+    # We do not include the D and R parameters from the calibration data since the images are
+    # already undistorted and rectified to the camera #0 frame.
+    camera_info.R = list(np.eye(3).flat)
 
     cv_bridge = CvBridge()
 
@@ -123,11 +129,14 @@ def save_camera_data(bag, kitti, camera, timestamps):
         camera_info.height, camera_info.width = cv_image.shape[:2]
         encoding = 'bgr8' if camera.is_rgb else 'mono8'
         image_message = cv_bridge.cv2_to_imgmsg(cv_image, encoding=encoding)
-        image_message.header.frame_id = camera.frame_id
+        image_message.header.frame_id = rectified_camera_frame_id
         t = to_rostime(timestamp)
         image_message.header.stamp = t
         camera_info.header.stamp = t
-        bag.write(camera.topic_id + '/image_rect', image_message, t=t)
+        # Follow the naming conventions from
+        # http://docs.ros.org/melodic/api/sensor_msgs/html/msg/CameraInfo.html
+        image_topic_ext = '/image_rect_color' if camera.is_rgb else '/image_rect'
+        bag.write(camera.topic_id + image_topic_ext, image_message, t=t)
         bag.write(camera.topic_id + '/camera_info', camera_info, t=t)
 
 
@@ -326,7 +335,7 @@ def convert_odom(sequence, color, input_dir='.', output_dir='.', compression=ros
     # Export
     bag_name = "kitti_data_odometry_{}_sequence_{}.bag".format(color, sequence_str)
     with rosbag.Bag(os.path.join(output_dir, bag_name), 'w', compression=compression) as bag:
-        save_dynamic_tf(bag, timestamps, kitti.poses, cameras[0].frame_id)
+        save_dynamic_tf(bag, timestamps, kitti.poses, rectified_camera_frame_id)
         for camera_nr in camera_nrs:
             save_camera_data(bag, kitti, cameras[camera_nr], timestamps)
         print("## OVERVIEW ##")
