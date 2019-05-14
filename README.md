@@ -1,10 +1,16 @@
 # kitti2bag
 
-[![Build Status](https://travis-ci.org/tomas789/kitti2bag.svg?branch=master)](https://travis-ci.org/tomas789/kitti2bag)
+[![Gitter](https://badges.gitter.im/kitti2bag/community.svg)](https://gitter.im/kitti2bag/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge) [![Build Status](https://travis-ci.org/tomas789/kitti2bag.svg?branch=master)](https://travis-ci.org/tomas789/kitti2bag)
 
 Convert [KITTI](http://www.cvlibs.net/datasets/kitti/index.php) dataset to ROS bag file the easy way!
 
 ![KITTI playback preview](https://raw.githubusercontent.com/tomas789/kitti2bag/gh-pages/img/kitti_playback.png)
+
+## Collaboration
+
+This package enjoyed significant interest from more people then I could have thought at the beginning. I'm really glad to see that. I see many PRs and issues being raised but my day job does not allow me to push this repository further. In order to allow this package to prosper, I'm opening it up for the community. I'm more than happy to add you as a collaborator to this repository. Just send me an email. 
+
+And by the way. To ensure we maintain the quality of the repo you are required to get the PR approval from at least one other collaborator. You can use the [Gitter](https://gitter.im/kitti2bag/community?utm_source=share-link&utm_medium=link&utm_campaign=share-link) to communicate with others.
 
 ## TODOs
 
