@@ -4,7 +4,7 @@ from __future__ import division, print_function
 
 import os
 import sys
-from collections import OrderedDict, namedtuple
+from collections import namedtuple
 from datetime import datetime
 
 import click
@@ -23,12 +23,12 @@ from tf2_msgs.msg import TFMessage
 from tqdm import tqdm
 
 CameraDetails = namedtuple('CameraDetails', ['nr', 'frame_id', 'topic_id', 'is_rgb'])
-cameras = OrderedDict((c.nr, c) for c in [
+cameras = [
     CameraDetails(0, 'camera_gray_left', '/kitti/camera_gray/left', False),
     CameraDetails(1, 'camera_gray_right', '/kitti/camera_gray/right', False),
     CameraDetails(2, 'camera_color_left', '/kitti/camera_color/left', True),
     CameraDetails(3, 'camera_color_right', '/kitti/camera_color/right', True)
-])
+]
 # All of the cameras share the same camera #0 frame after rectification,
 # which is the case for both the raw synced and odometry datasets.
 rectified_camera_frame_id = cameras[0].frame_id
@@ -293,10 +293,10 @@ def convert_raw(date, drive, input_dir='.', output_dir='.', compression=rosbag.C
         save_imu_data(bag, kitti, imu_frame_id, imu_topic)
         save_gps_fix_data(bag, kitti, imu_frame_id, gps_fix_topic)
         save_gps_vel_data(bag, kitti, imu_frame_id, gps_vel_topic)
-        for camera_nr in cameras:
-            camera_dir = os.path.join(kitti.data_path, 'image_{0:02d}'.format(camera_nr))
+        for camera in cameras:
+            camera_dir = os.path.join(kitti.data_path, 'image_{0:02d}'.format(camera.nr))
             timestamps = read_timestamps(camera_dir)
-            save_camera_data(bag, kitti, cameras[camera_nr], timestamps)
+            save_camera_data(bag, kitti, camera, timestamps)
         save_velo_data(bag, kitti, velo_frame_id, velo_topic)
 
         print("## OVERVIEW ##")
@@ -330,7 +330,7 @@ def convert_odom(sequence, color, input_dir='.', output_dir='.', compression=ros
     elif color == 'gray':
         camera_nrs = (0, 1)
     else:
-        camera_nrs = list(cameras)
+        camera_nrs = list(range(4))
 
     # Export
     bag_name = "kitti_data_odometry_{}_sequence_{}.bag".format(color, sequence_str)
