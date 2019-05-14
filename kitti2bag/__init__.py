@@ -193,7 +193,7 @@ def save_static_transforms(bag, kitti, imu_frame_id, velo_frame_id):
 
     # tf_static
     transforms = [
-        ('base_link', imu_frame_id, T_base_link_to_imu),
+        (imu_frame_id, 'base_link', inv(T_base_link_to_imu)),
         (imu_frame_id, velo_frame_id, inv(kitti.calib.T_velo_imu)),
         (imu_frame_id, cameras[0].frame_id, inv(kitti.calib.T_cam0_imu)),
         (imu_frame_id, cameras[1].frame_id, inv(kitti.calib.T_cam1_imu)),
