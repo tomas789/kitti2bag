@@ -258,8 +258,7 @@ def save_gps_vel_data(bag, kitti, gps_frame_id, topic):
         bag.write(topic, twist_msg, t=twist_msg.header.stamp)
 
 
-def main():
-    
+def run_kitti2bag():
     parser = argparse.ArgumentParser(description = "Convert KITTI dataset to ROS bag file the easy way!")
     # Accepted argument values
     kitti_types = ["raw_synced", "odom_color", "odom_gray"]
@@ -390,5 +389,3 @@ def main():
             print(bag)
             bag.close()
 
-if __name__ == '__main__':
-    main()

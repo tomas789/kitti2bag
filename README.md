@@ -1,10 +1,16 @@
 # kitti2bag
 
-[![Build Status](https://travis-ci.org/tomas789/kitti2bag.svg?branch=master)](https://travis-ci.org/tomas789/kitti2bag)
+[![Gitter](https://badges.gitter.im/kitti2bag/community.svg)](https://gitter.im/kitti2bag/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge) [![Build Status](https://travis-ci.org/tomas789/kitti2bag.svg?branch=master)](https://travis-ci.org/tomas789/kitti2bag)
 
 Convert [KITTI](http://www.cvlibs.net/datasets/kitti/index.php) dataset to ROS bag file the easy way!
 
-![KITTI playback preview](https://tomas789.github.io/kitti2bag/img/kitti_playback.png)
+![KITTI playback preview](https://raw.githubusercontent.com/tomas789/kitti2bag/gh-pages/img/kitti_playback.png)
+
+## Collaboration
+
+This package enjoyed significant interest from more people then I could have thought at the beginning. I'm really glad to see that. I see many PRs and issues being raised but my day job does not allow me to push this repository further. In order to allow this package to prosper, I'm opening it up for the community. I'm more than happy to add you as a collaborator to this repository. Just send me an email. 
+
+And by the way. To ensure we maintain the quality of the repo you are required to get the PR approval from at least one other collaborator. You can use the [Gitter](https://gitter.im/kitti2bag/community?utm_source=share-link&utm_medium=link&utm_campaign=share-link) to communicate with others.
 
 ## TODOs
 
@@ -25,7 +31,7 @@ Thanks to the work of @jnitsch, _kitti2bag_ can now export velodyne laser data a
 
 ## How to install it?
 
-It is very easy! Just run
+It is very easy! On the machine with ROS installed, just run
 ```bash
 pip install kitti2bag
 ```
@@ -35,8 +41,8 @@ pip install kitti2bag
 One example is better then thousand words so here it is
 
 ```bash
-$ wget http://kitti.is.tue.mpg.de/kitti/raw_data/2011_09_26_drive_0002/2011_09_26_drive_0002_sync.zip
-$ wget http://kitti.is.tue.mpg.de/kitti/raw_data/2011_09_26_calib.zip
+$ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive_0002/2011_09_26_drive_0002_sync.zip
+$ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_calib.zip
 $ unzip 2011_09_26_drive_0002_sync.zip
 $ unzip 2011_09_26_calib.zip
 $ kitti2bag -t 2011_09_26 -r 0002 raw_synced .
@@ -89,6 +95,27 @@ topics:      /kitti/camera_color_left/camera_info    77 msgs    : sensor_msgs/Ca
 That's it. You have file `kitti_2011_09_26_drive_0002_sync.bag` that contains your data.
 
 Other source files can be found at [KITTI raw data](http://www.cvlibs.net/datasets/kitti/raw_data.php) page.
+
+If you got an error saying something like _command not found_ it means that your python installation is in bad shape. You might try running 
+```python -m kitti2bag -t 2011_09_26 -r 0002 raw_synced .```
+Or maybe use Docker.
+
+### Prefer Docker?
+
+That is easy too. There is a pre-built image `tomas789/kitti2bag`. 
+
+```bash
+$ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive_0002/2011_09_26_drive_0002_sync.zip
+$ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_calib.zip
+$ unzip 2011_09_26_drive_0002_sync.zip
+$ unzip 2011_09_26_calib.zip
+$ docker run -v `pwd`:/data -it tomas789/kitti2bag -t 2011_09_26 -r 0002 raw_synced
+Exporting static transformations
+Exporting time dependent transformations
+...
+```
+
+This might also be a better alternative if you are having troubles installing the package. 
 
 ## Bug reporting, support and feature requests.
 
