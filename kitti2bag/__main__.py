@@ -1,4 +1,4 @@
-from .kitti2bag import run_kitti2bag
+from kitti2bag import run_kitti2bag
 
 
 def main():

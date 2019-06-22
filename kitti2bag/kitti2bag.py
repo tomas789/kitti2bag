@@ -76,7 +76,7 @@ def save_dynamic_tf(bag, kitti, kitti_type, initial_time):
 
     elif kitti_type.find("odom") != -1:
         timestamps = map(lambda x: initial_time + x.total_seconds(), kitti.timestamps)
-        for timestamp, tf_matrix in zip(timestamps, kitti.T_w_cam0):
+        for timestamp, tf_matrix in zip(timestamps, kitti.poses):
             tf_msg = TFMessage()
             tf_stamped = TransformStamped()
             tf_stamped.header.stamp = rospy.Time.from_sec(timestamp)
@@ -360,8 +360,8 @@ def run_kitti2bag():
             print('Path {} does not exists. Exiting.'.format(kitti.sequence_path))
             sys.exit(1)
 
-        kitti.load_calib()         
-        kitti.load_timestamps() 
+        kitti._load_calib()         
+        kitti._load_timestamps() 
              
         if len(kitti.timestamps) == 0:
             print('Dataset is empty? Exiting.')
@@ -369,7 +369,7 @@ def run_kitti2bag():
             
         if args.sequence in odometry_sequences[:11]:
             print("Odometry dataset sequence {} has ground truth information (poses).".format(args.sequence))
-            kitti.load_poses()
+            kitti._load_poses()
 
         try:
             util = pykitti.utils.read_calib_file(os.path.join(args.dir,'sequences',args.sequence, 'calib.txt'))
