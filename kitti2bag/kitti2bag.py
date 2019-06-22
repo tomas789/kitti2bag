@@ -186,7 +186,7 @@ def save_velo_data(bag, kitti, velo_frame_id, topic):
         fields = [PointField('x', 0, PointField.FLOAT32, 1),
                   PointField('y', 4, PointField.FLOAT32, 1),
                   PointField('z', 8, PointField.FLOAT32, 1),
-                  PointField('i', 12, PointField.FLOAT32, 1)]
+                  PointField('intensity', 12, PointField.FLOAT32, 1)]
         pcl_msg = pcl2.create_cloud(header, fields, scan)
 
         bag.write(topic + '/pointcloud', pcl_msg, t=pcl_msg.header.stamp)
