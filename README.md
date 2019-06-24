@@ -32,8 +32,11 @@ Thanks to the work of @jnitsch, _kitti2bag_ can now export velodyne laser data a
 ## How to install it?
 
 It is very easy! On the machine with ROS installed, just run
+install pykitti from source
 ```bash
-pip install kitti2bag
+git clone https://github.com/utiasSTARS/pykitti.git
+cd pykitti
+sudo python setup.py install
 ```
 
 ## How to run it?
