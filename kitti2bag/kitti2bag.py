@@ -361,10 +361,10 @@ def run_kitti2bag():
         
         if args.sequence == None:
             print("Sequence option is not given. It is mandatory for odometry dataset.")
-            print("Usage for odometry dataset: kitti2bag {odom_color, odom_gray} [dir] -s <sequence>")
+            print("Usage for odometry dataset: kitti2bag {odom} [dir] -s <sequence>")
             sys.exit(1)
             
-        bag = rosbag.Bag("kitti_data_odometry_{}_sequence_{}.bag".format(args.kitti_type[5:],args.sequence), 'w', compression=compression)
+        bag = rosbag.Bag("kitti_data_odometry_sequence_{}.bag".format(args.sequence), 'w', compression=compression)
         
         kitti = pykitti.odometry(args.dir, args.sequence)
         if not os.path.exists(kitti.sequence_path):
@@ -383,6 +383,8 @@ def run_kitti2bag():
             velo_topic = '/kitti/velo'
 
             transforms = [
+                ('world', 'camera_init', np.eye(4, 4)),
+                ('world', 'velo_init', kitti.calib.T_cam0_velo),
                 (cameras[0][1], velo_frame_id, kitti.calib.T_cam0_velo),
                 (cameras[0][1], cameras[1][1], kitti.calib.T_cam0_velo.dot(inv(kitti.calib.T_cam1_velo))),
                 (cameras[0][1], cameras[2][1], kitti.calib.T_cam0_velo.dot(inv(kitti.calib.T_cam2_velo))),
