@@ -5,6 +5,7 @@
 Convert [KITTI](http://www.cvlibs.net/datasets/kitti/index.php) dataset to ROS bag file the easy way!
 
 ![KITTI playback preview](https://raw.githubusercontent.com/tomas789/kitti2bag/gh-pages/img/kitti_playback.png)
+![KITTI rviz preview](https://raw.githubusercontent.com/AlterLimbo/kitti2bag/gh-pages/img/kitti_rviz.png)
 
 ## Collaboration
 
