@@ -85,7 +85,7 @@ def save_dynamic_tf(bag, kitti_type, kitti, initial_time):
             tf_msg = TFMessage()
             tf_stamped = TransformStamped()
             tf_stamped.header.stamp = rospy.Time.from_sec(timestamp)
-            tf_stamped.header.frame_id = 'world'
+            tf_stamped.header.frame_id = 'camera_init'
             tf_stamped.child_frame_id = 'camera_gray_left'
             
             t = tf_matrix[0:3, 3]
@@ -149,10 +149,10 @@ def save_camera_data(bag, kitti_type, kitti, util, bridge, camera, camera_frame_
         image_message.header.frame_id = camera_frame_id
         if kitti_type.find("raw") != -1:
             image_message.header.stamp = rospy.Time.from_sec(float(datetime.strftime(dt, "%s.%f")))
-            topic_ext = "/image_raw"
+            topic_ext = "/image"
         elif kitti_type.find("odom") != -1:
             image_message.header.stamp = rospy.Time.from_sec(dt)
-            topic_ext = "/image_rect"
+            topic_ext = "/image"
         calib.header.stamp = image_message.header.stamp
         bag.write(topic + topic_ext, image_message, t = image_message.header.stamp)
         bag.write(topic + '/camera_info', calib, t = calib.header.stamp) 
@@ -239,9 +239,9 @@ def save_static_transforms(bag, kitti_type, transforms, timestamps):
         t = get_static_transform(from_frame_id=transform[0], to_frame_id=transform[1], transform=transform[2])
         tfm.transforms.append(t)
     if kitti_type.find("raw") != -1:
-        time = rospy.Time.from_sec(float(timestamps[0].strftime("%s.%f")))
+        time = rospy.Time.from_sec(float(timestamps[1].strftime("%s.%f")))
     elif kitti_type.find("odom") != -1:
-        time = rospy.Time.from_sec(timestamps[0])
+        time = rospy.Time.from_sec(timestamps[1])
     for i in range(len(tfm.transforms)):
         tfm.transforms[i].header.stamp = time
     bag.write('/tf_static', tfm, t=time)
@@ -368,7 +368,7 @@ def run_kitti2bag():
             print("Usage for odometry dataset: kitti2bag {odom} [dir] -s <sequence>")
             sys.exit(1)
             
-        bag = rosbag.Bag("kitti_data_odometry_sequence_{}.bag".format(args.sequence), 'w', compression=compression)
+        bag = rosbag.Bag("kitti_odometry_sequence_{}.bag".format(args.sequence), 'w', compression=compression)
         
         kitti = pykitti.odometry(args.dir, args.sequence)
         if not os.path.exists(kitti.sequence_path):
@@ -387,8 +387,8 @@ def run_kitti2bag():
             velo_topic = '/kitti/velo'
 
             transforms = [
-                ('world', 'camera_init', np.eye(4, 4)),
-                ('world', 'velo_init', kitti.calib.T_cam0_velo),
+                ('world', 'velo_init', np.eye(4, 4)),
+                ('world', 'camera_init', inv(kitti.calib.T_cam0_velo)),
                 (cameras[0][1], velo_frame_id, kitti.calib.T_cam0_velo),
                 (cameras[0][1], cameras[1][1], kitti.calib.T_cam0_velo.dot(inv(kitti.calib.T_cam1_velo))),
                 (cameras[0][1], cameras[2][1], kitti.calib.T_cam0_velo.dot(inv(kitti.calib.T_cam2_velo))),
