@@ -56,6 +56,11 @@ def save_dynamic_tf(bag, kitti_type, kitti, initial_time):
             tf_oxts_transform.child_frame_id = 'base_link'
 
             transform = (oxts.T_w_imu)
+
+            T_imu_to_base_link = np.eye(4, 4)
+            T_imu_to_base_link[0:3, 3] = [2.71/2.0+0.05, -0.32, -0.93]
+            transform = np.dot(transform,T_imu_to_base_link)
+
             t = transform[0:3, 3]
             q = tf.transformations.quaternion_from_matrix(transform)
             oxts_tf = Transform()
@@ -233,14 +238,13 @@ def save_static_transforms(bag, kitti_type, transforms, timestamps):
     for transform in transforms:
         t = get_static_transform(from_frame_id=transform[0], to_frame_id=transform[1], transform=transform[2])
         tfm.transforms.append(t)
-    for timestamp in timestamps:
-        if kitti_type.find("raw") != -1:
-            time = rospy.Time.from_sec(float(timestamp.strftime("%s.%f")))
-        elif kitti_type.find("odom") != -1:
-            time = rospy.Time.from_sec(timestamp)
-        for i in range(len(tfm.transforms)):
-            tfm.transforms[i].header.stamp = time
-        bag.write('/tf_static', tfm, t=time)
+    if kitti_type.find("raw") != -1:
+        time = rospy.Time.from_sec(float(timestamps[0].strftime("%s.%f")))
+    elif kitti_type.find("odom") != -1:
+        time = rospy.Time.from_sec(timestamps[0])
+    for i in range(len(tfm.transforms)):
+        tfm.transforms[i].header.stamp = time
+    bag.write('/tf_static', tfm, t=time)
 
 
 def save_gps_fix_data(bag, kitti, gps_frame_id, topic):
@@ -272,7 +276,7 @@ def save_gps_vel_data(bag, kitti, gps_frame_id, topic):
 def run_kitti2bag():
     parser = argparse.ArgumentParser(description = "Convert KITTI dataset to ROS bag file the easy way!")
     # Accepted argument values
-    kitti_types = ["raw_synced", "odom"]
+    kitti_types = ["raw_sync", "odom"]
     odometry_sequences = []
     for s in range(22):
         odometry_sequences.append(str(s).zfill(2))
@@ -301,11 +305,11 @@ def run_kitti2bag():
     
         if args.date == None:
             print("Date option is not given. It is mandatory for raw dataset.")
-            print("Usage for raw dataset: kitti2bag raw_synced [dir] -t <date> -r <drive>")
+            print("Usage for raw dataset: kitti2bag raw_sync [dir] -t <date> -r <drive>")
             sys.exit(1)
         elif args.drive == None:
             print("Drive option is not given. It is mandatory for raw dataset.")
-            print("Usage for raw dataset: kitti2bag raw_synced [dir] -t <date> -r <drive>")
+            print("Usage for raw dataset: kitti2bag raw_sync [dir] -t <date> -r <drive>")
             sys.exit(1)
         
         bag = rosbag.Bag("kitti_{}_drive_{}_{}.bag".format(args.date, args.drive, args.kitti_type[4:]), 'w', compression=compression)
@@ -406,4 +410,3 @@ def run_kitti2bag():
             print("## OVERVIEW ##")
             print(bag)
             bag.close()
-
