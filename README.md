@@ -38,6 +38,11 @@ git clone https://github.com/utiasSTARS/pykitti.git
 cd pykitti
 sudo python setup.py install
 ```
+install kitti2bag
+```bash
+cd kitti2bag
+sudo python setup.py install
+```
 
 ## How to run it?
 
@@ -48,7 +53,7 @@ $ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive
 $ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_calib.zip
 $ unzip 2011_09_26_drive_0002_sync.zip
 $ unzip 2011_09_26_calib.zip
-$ kitti2bag -t 2011_09_26 -r 0002 raw_synced .
+$ kitti2bag -t 2011_09_26 -r 0002 raw_sync .
 Exporting static transformations
 Exporting time dependent transformations
 Exporting IMU
@@ -63,7 +68,7 @@ Exporting camera 3
 Exporting velodyne data
 100% (77 of 77) |##########################| Elapsed Time: 0:00:15 Time: 0:00:15
 ## OVERVIEW ##
-path:        kitti_2011_09_26_drive_0002_synced.bag
+path:        kitti_2011_09_26_drive_0002_sync.bag
 version:     2.0
 duration:    7.8s
 start:       Sep 26 2011 13:02:44.33 (1317042164.33)
@@ -79,28 +84,77 @@ types:       geometry_msgs/TwistStamped [98d34b0043a2093cf9d9345ab6eef12e]
              sensor_msgs/PointCloud2    [1158d486dd51d683ce2f1be655c3c181]
              tf2_msgs/TFMessage         [94810edda583a504dfda3829e70d7eec]
 topics:      /kitti/camera_color_left/camera_info    77 msgs    : sensor_msgs/CameraInfo    
-             /kitti/camera_color_left/image_raw      77 msgs    : sensor_msgs/Image         
+             /kitti/camera_color_left/image          77 msgs    : sensor_msgs/Image         
              /kitti/camera_color_right/camera_info   77 msgs    : sensor_msgs/CameraInfo    
-             /kitti/camera_color_right/image_raw     77 msgs    : sensor_msgs/Image         
+             /kitti/camera_color_right/image         77 msgs    : sensor_msgs/Image         
              /kitti/camera_gray_left/camera_info     77 msgs    : sensor_msgs/CameraInfo    
-             /kitti/camera_gray_left/image_raw       77 msgs    : sensor_msgs/Image         
+             /kitti/camera_gray_left/image           77 msgs    : sensor_msgs/Image         
              /kitti/camera_gray_right/camera_info    77 msgs    : sensor_msgs/CameraInfo    
-             /kitti/camera_gray_right/image_raw      77 msgs    : sensor_msgs/Image         
+             /kitti/camera_gray_right/image          77 msgs    : sensor_msgs/Image         
              /kitti/oxts/gps/fix                     77 msgs    : sensor_msgs/NavSatFix     
              /kitti/oxts/gps/vel                     77 msgs    : geometry_msgs/TwistStamped
              /kitti/oxts/imu                         77 msgs    : sensor_msgs/Imu           
              /kitti/velo/pointcloud                  77 msgs    : sensor_msgs/PointCloud2   
              /tf                                     77 msgs    : tf2_msgs/TFMessage        
-             /tf_static                              77 msgs    : tf2_msgs/TFMessage
+             /tf_static                               1 msgs    : tf2_msgs/TFMessage
 ```
 
 
 That's it. You have file `kitti_2011_09_26_drive_0002_sync.bag` that contains your data.
 
-Other source files can be found at [KITTI raw data](http://www.cvlibs.net/datasets/kitti/raw_data.php) page.
+Other raw files can be found at [KITTI raw data](http://www.cvlibs.net/datasets/kitti/raw_data.php) page.
+
+For odometry data from [KITTI odometry](http://www.cvlibs.net/datasets/kitti/eval_odometry.php) page.
+
+```bash
+$ unzip data_odometry_color.zip
+$ unzip data_odometry_gray.zip
+$ unzip data_odometry_poses.zip
+$ unzip data_odometry_velodyne.zip
+$ unzip data_odometry_calib.zip
+$ kitti2bag -s 04 odom ./dataset/
+Odometry dataset sequence 04 has ground truth information (poses).
+Exporting static transformations
+Exporting time dependent transformations
+Exporting camera 0
+100% (271 of 271) |##########################| Elapsed Time: 0:00:01 Time:  0:00:01
+Exporting camera 1
+100% (271 of 271) |##########################| Elapsed Time: 0:00:01 Time:  0:00:01
+Exporting camera 2
+100% (271 of 271) |##########################| Elapsed Time: 0:00:02 Time:  0:00:02
+Exporting camera 3
+100% (271 of 271) |##########################| Elapsed Time: 0:00:02 Time:  0:00:02
+Exporting velodyne data
+100% (271 of 271) |##########################| Elapsed Time: 0:00:30 Time:  0:00:30
+## OVERVIEW ##
+path:        kitti_odometry_sequence_04.bag
+version:     2.0
+duration:    28.1s
+start:       Jul 26 2019 15:12:12.70 (1564125132.70)
+end:         Jul 26 2019 15:12:40.81 (1564125160.81)
+size:        1.4 GB
+messages:    2711
+compression: none [1084/1084 chunks]
+types:       sensor_msgs/CameraInfo  [c9a58c1b0b154e0e6da7578cb991d214]
+             sensor_msgs/Image       [060021388200f6f0f447d0fcd9c64743]
+             sensor_msgs/PointCloud2 [1158d486dd51d683ce2f1be655c3c181]
+             tf2_msgs/TFMessage      [94810edda583a504dfda3829e70d7eec]
+topics:      /kitti/camera_color_left/camera_info    271 msgs    : sensor_msgs/CameraInfo 
+             /kitti/camera_color_left/image          271 msgs    : sensor_msgs/Image      
+             /kitti/camera_color_right/camera_info   271 msgs    : sensor_msgs/CameraInfo 
+             /kitti/camera_color_right/image         271 msgs    : sensor_msgs/Image      
+             /kitti/camera_gray_left/camera_info     271 msgs    : sensor_msgs/CameraInfo 
+             /kitti/camera_gray_left/image           271 msgs    : sensor_msgs/Image      
+             /kitti/camera_gray_right/camera_info    271 msgs    : sensor_msgs/CameraInfo 
+             /kitti/camera_gray_right/image          271 msgs    : sensor_msgs/Image      
+             /kitti/velo/pointcloud                  271 msgs    : sensor_msgs/PointCloud2
+             /tf                                     271 msgs    : tf2_msgs/TFMessage     
+             /tf_static                                1 msg     : tf2_msgs/TFMessage
+
+```
 
 If you got an error saying something like _command not found_ it means that your python installation is in bad shape. You might try running 
-```python -m kitti2bag -t 2011_09_26 -r 0002 raw_synced .```
+```python -m kitti2bag -t 2011_09_26 -r 0002 raw_sync .```
 Or maybe use Docker.
 
 ### Prefer Docker?
@@ -112,7 +166,7 @@ $ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive
 $ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_calib.zip
 $ unzip 2011_09_26_drive_0002_sync.zip
 $ unzip 2011_09_26_calib.zip
-$ docker run -v `pwd`:/data -it tomas789/kitti2bag -t 2011_09_26 -r 0002 raw_synced
+$ docker run -v `pwd`:/data -it tomas789/kitti2bag -t 2011_09_26 -r 0002 raw_sync
 Exporting static transformations
 Exporting time dependent transformations
 ...
