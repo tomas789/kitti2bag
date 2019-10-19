@@ -36,12 +36,12 @@ def save_imu_data(bag, kitti, imu_frame_id, topic):
         imu.orientation.y = q[1]
         imu.orientation.z = q[2]
         imu.orientation.w = q[3]
-        imu.linear_acceleration.x = oxts.packet.af
-        imu.linear_acceleration.y = oxts.packet.al
-        imu.linear_acceleration.z = oxts.packet.au
-        imu.angular_velocity.x = oxts.packet.wf
-        imu.angular_velocity.y = oxts.packet.wl
-        imu.angular_velocity.z = oxts.packet.wu
+        imu.linear_acceleration.x = oxts.packet.ax
+        imu.linear_acceleration.y = oxts.packet.ay
+        imu.linear_acceleration.z = oxts.packet.az
+        imu.angular_velocity.x = oxts.packet.wx
+        imu.angular_velocity.y = oxts.packet.wy
+        imu.angular_velocity.z = oxts.packet.wz
         bag.write(topic, imu, t=imu.header.stamp)
 
 
