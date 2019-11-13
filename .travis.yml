@@ -46,8 +46,8 @@
 dist: 
   - trusty
 sudo: required
-language:
-  - generic
+language: python
+python: "2.7.14"
 cache:
   - apt
 
@@ -69,10 +69,12 @@ before_install:
   - sudo sh -c "echo \"deb http://packages.ros.org/ros/ubuntu $ROS_CI_DESKTOP main\" > /etc/apt/sources.list.d/ros-latest.list"
   - wget http://packages.ros.org/ros.key -O - | sudo apt-key add -
   - sudo apt-get update -qq
-  - sudo apt-get install -y python-catkin-pkg python-rosdep python-wstool ros-$ROS_DISTRO-catkin
+  - sudo apt-get install ros-$ROS_DISTRO-catkin
   - source /opt/ros/$ROS_DISTRO/setup.bash
+  # Use pip to install Python dependencies
+  - pip install rosdep numpy matplotlib catkin_pkg wstool
   # Prepare rosdep to install dependencies.
-  - sudo rosdep init
+  - sudo sh -c ". $VIRTUAL_ENV/bin/activate; rosdep init"
   - rosdep update
 
 # Create a catkin workspace with the package under integration.
@@ -88,7 +90,7 @@ install:
   # Add the package under integration to the workspace using a symlink.
   - cd ~/catkin_ws/src
   - ln -s $CI_SOURCE_PATH .
-  - sudo apt-get install -y python-dev python-numpy python-matplotlib ros-$ROS_DISTRO-tf ros-$ROS_DISTRO-opencv-candidate
+  - sudo apt-get install -y ros-$ROS_DISTRO-tf ros-$ROS_DISTRO-opencv-candidate
 
 # Install all dependencies, using wstool first and rosdep second.
 # wstool looks for a ROSINSTALL_FILE defined in the environment variables.
@@ -101,6 +103,9 @@ before_script:
   # package depdencies: install using rosdep.
   - cd ~/catkin_ws
   - rosdep install -y --from-paths src --ignore-src --rosdistro $ROS_DISTRO
+  # There is no pip-installable version of cv2, so just copy the system library into
+  # the virtualenv path
+  - cp /usr/lib/python2.7/dist-packages/cv2.so $VIRTUAL_ENV/lib/python2.7/site-packages/
 
 # Compile and test (mark the build as failed if any step fails). If the
 # CATKIN_OPTIONS file exists, use it as an argument to catkin_make, for example
@@ -118,7 +123,7 @@ script:
   - source devel/setup.bash
   - catkin_make run_tests && catkin_test_results
   - cd $CI_SOURCE_PATH
-  - sudo python setup.py install
+  - python setup.py install
   - mkdir -p $HOME/kitti
   - cd $HOME/kitti
   - wget http://kitti.is.tue.mpg.de/kitti/raw_data/2011_09_26_drive_0048/2011_09_26_drive_0048_sync.zip

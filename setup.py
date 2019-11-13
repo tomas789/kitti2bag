@@ -14,5 +14,11 @@ setup(
     entry_points = {
         'console_scripts': ['kitti2bag=kitti2bag.__main__:main'],
     },
-    install_requires=['pykitti', 'progressbar2']
+    install_requires=[
+        'catkin_pkg',
+        'progressbar2',
+        'pykitti',
+        'pyyaml',
+        'rospkg',
+    ]
 )
