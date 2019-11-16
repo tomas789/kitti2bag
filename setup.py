@@ -9,10 +9,13 @@ setup(
     author='Tomas Krejci',
     author_email='tomas@krej.ci',
     url='https://github.com/tomas789/kitti2bag/',
-    download_url = 'https://github.com/tomas789/kitti2bag/archive/1.5.zip',
-    keywords = ['dataset', 'ros', 'rosbag', 'kitti'],
-    entry_points = {
-        'console_scripts': ['kitti2bag=kitti2bag.__main__:main'],
+    download_url='https://github.com/tomas789/kitti2bag/archive/1.5.zip',
+    keywords=['dataset', 'ros', 'rosbag', 'kitti'],
+    packages=['kitti2bag'],
+    entry_points={
+        'console_scripts': ['kitti2bag=kitti2bag:cli'],
     },
-    install_requires=['pykitti', 'progressbar2']
+    install_requires=['pykitti', 'tqdm', 'click'],
+    setup_requires=['pytest-runner'],
+    tests_require=['pytest', 'requests', 'six', 'pyyaml', 'click>=7']
 )
