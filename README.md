@@ -98,7 +98,7 @@ topics:      /kitti/camera_color_left/camera_info    77 msgs    : sensor_msgs/Ca
              /kitti/oxts/imu                         77 msgs    : sensor_msgs/Imu           
              /kitti/velo/pointcloud                  77 msgs    : sensor_msgs/PointCloud2   
              /tf                                     77 msgs    : tf2_msgs/TFMessage        
-             /tf_static                               1 msgs    : tf2_msgs/TFMessage
+             /tf_static                              77 msgs    : tf2_msgs/TFMessage
 ```
 
 
@@ -151,7 +151,7 @@ topics:      /kitti/camera_color_left/camera_info    271 msgs    : sensor_msgs/C
              /kitti/camera_gray_right/image          271 msgs    : sensor_msgs/Image      
              /kitti/velo/pointcloud                  271 msgs    : sensor_msgs/PointCloud2
              /tf                                     271 msgs    : tf2_msgs/TFMessage     
-             /tf_static                                1 msg     : tf2_msgs/TFMessage
+             /tf_static                              271 msgs    : tf2_msgs/TFMessage
 
 ```
 

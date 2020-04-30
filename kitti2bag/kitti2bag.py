@@ -239,12 +239,17 @@ def save_static_transforms(bag, kitti_type, transforms, timestamps):
         t = get_static_transform(from_frame_id=transform[0], to_frame_id=transform[1], transform=transform[2])
         tfm.transforms.append(t)
     if kitti_type.find("raw") != -1:
-        time = rospy.Time.from_sec(float(timestamps[1].strftime("%s.%f")))
+        for t in timestamps:
+            time = rospy.Time.from_sec(float(t.strftime("%s.%f")))
+            for tf in tfm.transforms:
+                tf.header.stamp = time
+            bag.write('/tf_static', tfm, t=time)
     elif kitti_type.find("odom") != -1:
-        time = rospy.Time.from_sec(timestamps[1])
-    for i in range(len(tfm.transforms)):
-        tfm.transforms[i].header.stamp = time
-    bag.write('/tf_static', tfm, t=time)
+        for t in timestamps:
+            time = rospy.Time.from_sec(t)
+            for tf in tfm.transforms:
+                tf.header.stamp = time
+            bag.write('/tf_static', tfm, t=time)
 
 
 def save_gps_fix_data(bag, kitti, gps_frame_id, topic):
