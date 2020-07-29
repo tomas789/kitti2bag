@@ -102,6 +102,22 @@ If you got an error saying something like _command not found_ it means that your
 ```python -m kitti2bag -t 2011_09_26 -r 0002 raw_synced .```
 Or maybe use Docker.
 
+### Docker image build from Dockerfile
+
+You can build Docker image from Dockerfile.
+
+```bash
+$ docker build -t <image_name>:<tag> .
+$ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive_0002/2011_09_26_drive_0002_sync.zip
+$ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_calib.zip
+$ unzip 2011_09_26_drive_0002_sync.zip
+$ unzip 2011_09_26_calib.zip
+$ docker run -v $(pwd):/data -it <image_name>:<tag> -t 2011_09_26 -r 0002 raw_synced
+Exporting static transformations
+Exporting time dependent transformations
+...
+```
+
 ### Prefer Docker?
 
 That is easy too. There is a pre-built image `tomas789/kitti2bag`. 
@@ -111,7 +127,7 @@ $ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive
 $ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_calib.zip
 $ unzip 2011_09_26_drive_0002_sync.zip
 $ unzip 2011_09_26_calib.zip
-$ docker run -v `pwd`:/data -it tomas789/kitti2bag -t 2011_09_26 -r 0002 raw_synced
+$ docker run -v $(pwd):/data -it tomas789/kitti2bag -t 2011_09_26 -r 0002 raw_synced
 Exporting static transformations
 Exporting time dependent transformations
 ...
