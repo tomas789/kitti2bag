@@ -359,9 +359,6 @@ def run_kitti2bag():
         if not os.path.exists(kitti.sequence_path):
             print('Path {} does not exists. Exiting.'.format(kitti.sequence_path))
             sys.exit(1)
-
-        kitti.load_calib()         
-        kitti.load_timestamps() 
              
         if len(kitti.timestamps) == 0:
             print('Dataset is empty? Exiting.')
@@ -369,7 +366,6 @@ def run_kitti2bag():
             
         if args.sequence in odometry_sequences[:11]:
             print("Odometry dataset sequence {} has ground truth information (poses).".format(args.sequence))
-            kitti.load_poses()
 
         try:
             util = pykitti.utils.read_calib_file(os.path.join(args.dir,'sequences',args.sequence, 'calib.txt'))
