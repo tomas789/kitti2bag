@@ -76,7 +76,7 @@ def save_dynamic_tf(bag, kitti, kitti_type, initial_time):
 
     elif kitti_type.find("odom") != -1:
         timestamps = map(lambda x: initial_time + x.total_seconds(), kitti.timestamps)
-        for timestamp, tf_matrix in zip(timestamps, kitti.T_w_cam0):
+        for timestamp, tf_matrix in zip(timestamps, kitti.poses):
             tf_msg = TFMessage()
             tf_stamped = TransformStamped()
             tf_stamped.header.stamp = rospy.Time.from_sec(timestamp)
