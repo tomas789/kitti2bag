@@ -390,10 +390,11 @@ def run_kitti2bag():
         try:
             velo_frame_id = 'velo_link'
             velo_topic = '/kitti/velo'
+            tf_camera_init = np.array([[1, 0, 0, 0],[0, 0, 1, 0],[0, -1, 0, 0],[0, 0, 0, 1]])
 
             transforms = [
-                ('world', 'velo_init', np.eye(4, 4)),
-                ('world', 'camera_init', inv(kitti.calib.T_cam0_velo)),
+                ('world', 'camera_init', tf_camera_init),
+                ('world', 'velo_init', tf_camera_init.dot(kitti.calib.T_cam0_velo)),
                 (cameras[0][1], velo_frame_id, kitti.calib.T_cam0_velo),
                 (cameras[0][1], cameras[1][1], kitti.calib.T_cam0_velo.dot(inv(kitti.calib.T_cam1_velo))),
                 (cameras[0][1], cameras[2][1], kitti.calib.T_cam0_velo.dot(inv(kitti.calib.T_cam2_velo))),
