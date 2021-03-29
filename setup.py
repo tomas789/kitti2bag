@@ -11,6 +11,7 @@ setup(
     url='https://github.com/tomas789/kitti2bag/',
     download_url = 'https://github.com/tomas789/kitti2bag/archive/1.5.zip',
     keywords = ['dataset', 'ros', 'rosbag', 'kitti'],
+    packages=['kitti2bag'],
     entry_points = {
         'console_scripts': ['kitti2bag=kitti2bag.__main__:main'],
     },

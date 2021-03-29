@@ -93,5 +93,8 @@ ENV/
 # Pycharm
 *.idea
 
+# Visual Studio Code
+.vscode/
+
 # Temporary files from text editors
 *~
