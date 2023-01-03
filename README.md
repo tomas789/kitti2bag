@@ -5,7 +5,7 @@
 Convert [KITTI](http://www.cvlibs.net/datasets/kitti/index.php) dataset to ROS bag file the easy way!
 
 ![KITTI playback preview](https://raw.githubusercontent.com/tomas789/kitti2bag/gh-pages/img/kitti_playback.png)
-![KITTI rviz preview](https://raw.githubusercontent.com/AlterLimbo/kitti2bag/gh-pages/img/kitti_rviz.png)
+![KITTI rviz preview](https://raw.githubusercontent.com/ulterzlw/kitti2bag/gh-pages/img/kitti_rviz.png)
 
 ## Collaboration
 
@@ -42,7 +42,7 @@ sudo python setup.py install
 ```
 install kitti2bag
 ```bash
-git clone https://github.com/AlterEtch/kitti2bag.git
+git clone https://github.com/ulterzlw/kitti2bag.git
 cd kitti2bag
 sudo python setup.py install
 ```
