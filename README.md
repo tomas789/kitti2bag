@@ -34,7 +34,12 @@ Thanks to the work of @jnitsch, _kitti2bag_ can now export velodyne laser data a
 
 It is very easy! On the machine with ROS installed, 
 
-install pykitti from **source** instead of from pip
+Uninstall pykitti if it is installed from pip
+```bash
+pip uninstall pykitti
+```
+
+install pykitti from source
 ```bash
 git clone https://github.com/utiasSTARS/pykitti.git # test on commit d3e1bb81676e831886726cc5ed79ce1f049aef2c
 cd pykitti
@@ -160,16 +165,23 @@ If you got an error saying something like _command not found_ it means that your
 ```python -m kitti2bag -t 2011_09_26 -r 0002 raw_sync .```
 Or maybe use Docker.
 
-### Prefer Docker?
+## Prefer Docker? (Recommended)
 
-That is easy too. There is a pre-built image `tomas789/kitti2bag`. 
+That is easy too. There is a pre-built image `ulterzlw/kitti2bag`. 
 
 ```bash
 $ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive_0002/2011_09_26_drive_0002_sync.zip
 $ wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_calib.zip
 $ unzip 2011_09_26_drive_0002_sync.zip
 $ unzip 2011_09_26_calib.zip
-$ docker run -v `pwd`:/data -it tomas789/kitti2bag -t 2011_09_26 -r 0002 raw_sync
+$ docker run -v `pwd`:/data -it ulterzlw/kitti2bag -t 2011_09_26 -r 0002 raw_sync
+Exporting static transformations
+Exporting time dependent transformations
+...
+```
+```bash
+$ docker run -v `pwd`/dataset:/data -it ulterzlw/kitti2bag -s 04 odom
+Odometry dataset sequence 04 has ground truth information (poses).
 Exporting static transformations
 Exporting time dependent transformations
 ...
