@@ -21,7 +21,6 @@ Help me make this feature rich and complete. Just fork this repo, implement new 
 Feature request list:
  * make [URDF](http://wiki.ros.org/urdf) of a car so transformations between frames are easily done by ROS itself.
  * deal with tracklets
- * support for unsynced+unrectified version
  * provide documentation via [ROS wiki](wiki.ros.org)
  * provide simple GUI
  * distribute publically available bagfiles (is there a reliable public storage for this purpose?)
@@ -95,6 +94,15 @@ topics:      /kitti/camera_color_left/camera_info    77 msgs    : sensor_msgs/Ca
 
 
 That's it. You have file `kitti_2011_09_26_drive_0002_sync.bag` that contains your data.
+
+__NEW!__
+Now `kitti2bag` supports unsynced raw datasets, try it out running:
+```
+$ kitti2bag -t 2011_09_26 -r 0002 -v raw_unsynced .
+``` 
+Here the `-v` (`--velo`) argument is optional. If `-v` is not present no unique timestamps will be added to each scan point, so the published pcl will include the fields [x,y,z,i]. On the contrary, if `-v` is present a timestamp for each point will be added taking into account the LiDAR rotational motion (linear interpolation based on the computed azimuth angle). This is actually an approximation as there's no info in the dataset to be able substract the real points timestamps. However, it can be really useful when testing algorithms that perform any deskewing operation (e.g. LiDAR-Inertial SLAM approaches).
+
+_NOTE: arg `-v` will record the velodyne pointcloud in the same way as the official __ROS velodyne driver__, that is with the fields [x, y, z, intensity, time]._
 
 Other source files can be found at [KITTI raw data](http://www.cvlibs.net/datasets/kitti/raw_data.php) page.
 
