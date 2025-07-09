@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+from kitti2bag.kitti2bag import run_kitti2bag
+
+if __name__ == '__main__':
+    run_kitti2bag()

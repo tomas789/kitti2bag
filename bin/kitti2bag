@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# Source ROS2 environment
+source /opt/ros/jazzy/setup.bash
+
+# Source local workspace if available
+if [ -f /kitti2bag/install/setup.bash ]; then
+    source /kitti2bag/install/setup.bash
+fi
+
+# Run the Python entry point
+python3 -c "from kitti2bag.kitti2bag import run_kitti2bag; run_kitti2bag()" "$@"

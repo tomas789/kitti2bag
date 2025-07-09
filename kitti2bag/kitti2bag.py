@@ -1,4 +1,4 @@
-#!env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import sys
@@ -9,29 +9,114 @@ except ImportError as e:
     print('Could not load module \'pykitti\'. Please run `pip install pykitti`')
     sys.exit(1)
 
-import tf
 import os
 import cv2
-import rospy
-import rosbag
+import rclpy
+from rclpy.serialization import serialize_message
 import progressbar
 from tf2_msgs.msg import TFMessage
 from datetime import datetime
 from std_msgs.msg import Header
 from sensor_msgs.msg import CameraInfo, Imu, PointField, NavSatFix
-import sensor_msgs.point_cloud2 as pcl2
+from sensor_msgs_py import point_cloud2 as pcl2
 from geometry_msgs.msg import TransformStamped, TwistStamped, Transform
 from cv_bridge import CvBridge
 import numpy as np
 import argparse
+from tf_transformations import quaternion_from_euler, quaternion_from_matrix
+import rosbag2_py
+from builtin_interfaces.msg import Time as TimeMsg
+
+def datetime_to_ros_time(dt):
+    """Convert datetime to ROS2 Time message"""
+    timestamp = float(dt.strftime("%s.%f"))
+    seconds = int(timestamp)
+    nanoseconds = int((timestamp - seconds) * 1e9)
+    time_msg = TimeMsg()
+    time_msg.sec = seconds
+    time_msg.nanosec = nanoseconds
+    return time_msg
+
+def float_to_ros_time(timestamp):
+    """Convert float timestamp to ROS2 Time message"""
+    seconds = int(timestamp)
+    nanoseconds = int((timestamp - seconds) * 1e9)
+    time_msg = TimeMsg()
+    time_msg.sec = seconds
+    time_msg.nanosec = nanoseconds
+    return time_msg
+
+class ROS2BagWriter:
+    """ROS2 bag writer wrapper"""
+    def __init__(self, bag_path, compression='none'):
+        # compression parameter kept for compatibility but not used in ROS2
+        # Initialize rclpy
+        if not rclpy.ok():
+            rclpy.init()
+        
+        # Create bag writer
+        self.writer = rosbag2_py.SequentialWriter()
+        
+        storage_options = rosbag2_py.StorageOptions(
+            uri=bag_path,
+            storage_id='mcap'
+        )
+        
+        converter_options = rosbag2_py.ConverterOptions(
+            input_serialization_format='cdr',
+            output_serialization_format='cdr'
+        )
+        
+        self.writer.open(storage_options, converter_options)
+        self.topics = set()
+    
+    def create_topic(self, topic_name, msg_type):
+        """Create a topic in the bag"""
+        if topic_name not in self.topics:
+            topic_info = rosbag2_py.TopicMetadata(
+                id=len(self.topics),  # Use the current number of topics as ID
+                name=topic_name,
+                type=msg_type,
+                serialization_format='cdr'
+            )
+            self.writer.create_topic(topic_info)
+            self.topics.add(topic_name)
+    
+    def write(self, topic, msg, t=None):
+        """Write a message to the bag"""
+        # Create topic if it doesn't exist - fix message type generation
+        msg_module = type(msg).__module__
+        package_name = msg_module.split('.')[0]
+        msg_name = type(msg).__name__
+        msg_type = f"{package_name}/msg/{msg_name}"
+        self.create_topic(topic, msg_type)
+        
+        # Convert time to nanoseconds
+        if t is None:
+            if hasattr(msg, 'header') and hasattr(msg.header, 'stamp'):
+                timestamp_ns = msg.header.stamp.sec * 1000000000 + msg.header.stamp.nanosec
+            else:
+                import time
+                timestamp_ns = int(time.time() * 1e9)
+        else:
+            timestamp_ns = t.sec * 1000000000 + t.nanosec
+        
+        # Serialize and write
+        serialized_msg = serialize_message(msg)
+        self.writer.write(topic, serialized_msg, timestamp_ns)
+    
+    def close(self):
+        """Close the bag"""
+        if hasattr(self, 'writer'):
+            del self.writer
 
 def save_imu_data(bag, kitti, imu_frame_id, topic):
     print("Exporting IMU")
     for timestamp, oxts in zip(kitti.timestamps, kitti.oxts):
-        q = tf.transformations.quaternion_from_euler(oxts.packet.roll, oxts.packet.pitch, oxts.packet.yaw)
+        q = quaternion_from_euler(oxts.packet.roll, oxts.packet.pitch, oxts.packet.yaw)
         imu = Imu()
         imu.header.frame_id = imu_frame_id
-        imu.header.stamp = rospy.Time.from_sec(float(timestamp.strftime("%s.%f")))
+        imu.header.stamp = datetime_to_ros_time(timestamp)
         imu.orientation.x = q[0]
         imu.orientation.y = q[1]
         imu.orientation.z = q[2]
@@ -51,13 +136,13 @@ def save_dynamic_tf(bag, kitti, kitti_type, initial_time):
         for timestamp, oxts in zip(kitti.timestamps, kitti.oxts):
             tf_oxts_msg = TFMessage()
             tf_oxts_transform = TransformStamped()
-            tf_oxts_transform.header.stamp = rospy.Time.from_sec(float(timestamp.strftime("%s.%f")))
+            tf_oxts_transform.header.stamp = datetime_to_ros_time(timestamp)
             tf_oxts_transform.header.frame_id = 'world'
             tf_oxts_transform.child_frame_id = 'base_link'
 
             transform = (oxts.T_w_imu)
             t = transform[0:3, 3]
-            q = tf.transformations.quaternion_from_matrix(transform)
+            q = quaternion_from_matrix(transform)
             oxts_tf = Transform()
 
             oxts_tf.translation.x = t[0]
@@ -76,15 +161,15 @@ def save_dynamic_tf(bag, kitti, kitti_type, initial_time):
 
     elif kitti_type.find("odom") != -1:
         timestamps = map(lambda x: initial_time + x.total_seconds(), kitti.timestamps)
-        for timestamp, tf_matrix in zip(timestamps, kitti.T_w_cam0):
+        for timestamp, tf_matrix in zip(timestamps, kitti.poses):
             tf_msg = TFMessage()
             tf_stamped = TransformStamped()
-            tf_stamped.header.stamp = rospy.Time.from_sec(timestamp)
+            tf_stamped.header.stamp = float_to_ros_time(timestamp)
             tf_stamped.header.frame_id = 'world'
             tf_stamped.child_frame_id = 'camera_left'
             
             t = tf_matrix[0:3, 3]
-            q = tf.transformations.quaternion_from_matrix(tf_matrix)
+            q = quaternion_from_matrix(tf_matrix)
             transform = Transform()
 
             transform.translation.x = t[0]
@@ -109,17 +194,17 @@ def save_camera_data(bag, kitti_type, kitti, util, bridge, camera, camera_frame_
         image_dir = os.path.join(kitti.data_path, 'image_{}'.format(camera_pad))
         image_path = os.path.join(image_dir, 'data')
         image_filenames = sorted(os.listdir(image_path))
-        with open(os.path.join(image_dir, 'timestamps.txt')) as f:
+        with open(os.path.join(image_dir, 'timestamps.txt'), 'r', encoding='utf-8') as f:
             image_datetimes = map(lambda x: datetime.strptime(x[:-4], '%Y-%m-%d %H:%M:%S.%f'), f.readlines())
         
         calib = CameraInfo()
         calib.header.frame_id = camera_frame_id
-        calib.width, calib.height = tuple(util['S_rect_{}'.format(camera_pad)].tolist())
+        calib.height, calib.width = tuple(util['S_rect_{}'.format(camera_pad)].tolist())
         calib.distortion_model = 'plumb_bob'
-        calib.K = util['K_{}'.format(camera_pad)]
-        calib.R = util['R_rect_{}'.format(camera_pad)]
-        calib.D = util['D_{}'.format(camera_pad)]
-        calib.P = util['P_rect_{}'.format(camera_pad)]
+        calib.k = util['K_{}'.format(camera_pad)].flatten().tolist()
+        calib.r = util['R_rect_{}'.format(camera_pad)].flatten().tolist()
+        calib.d = util['D_{}'.format(camera_pad)].flatten().tolist()
+        calib.p = util['P_rect_{}'.format(camera_pad)].flatten().tolist()
             
     elif kitti_type.find("odom") != -1:
         camera_pad = '{0:01d}'.format(camera)
@@ -129,7 +214,7 @@ def save_camera_data(bag, kitti_type, kitti, util, bridge, camera, camera_frame_
         
         calib = CameraInfo()
         calib.header.frame_id = camera_frame_id
-        calib.P = util['P{}'.format(camera_pad)]
+        calib.p = util['P{}'.format(camera_pad)].flatten().tolist()
     
     iterable = zip(image_datetimes, image_filenames)
     bar = progressbar.ProgressBar()
@@ -143,10 +228,10 @@ def save_camera_data(bag, kitti_type, kitti, util, bridge, camera, camera_frame_
         image_message = bridge.cv2_to_imgmsg(cv_image, encoding=encoding)
         image_message.header.frame_id = camera_frame_id
         if kitti_type.find("raw") != -1:
-            image_message.header.stamp = rospy.Time.from_sec(float(datetime.strftime(dt, "%s.%f")))
+            image_message.header.stamp = datetime_to_ros_time(dt)
             topic_ext = "/image_raw"
         elif kitti_type.find("odom") != -1:
-            image_message.header.stamp = rospy.Time.from_sec(dt)
+            image_message.header.stamp = float_to_ros_time(dt)
             topic_ext = "/image_rect"
         calib.header.stamp = image_message.header.stamp
         bag.write(topic + topic_ext, image_message, t = image_message.header.stamp)
@@ -157,7 +242,7 @@ def save_velo_data(bag, kitti, velo_frame_id, topic):
     velo_path = os.path.join(kitti.data_path, 'velodyne_points')
     velo_data_dir = os.path.join(velo_path, 'data')
     velo_filenames = sorted(os.listdir(velo_data_dir))
-    with open(os.path.join(velo_path, 'timestamps.txt')) as f:
+    with open(os.path.join(velo_path, 'timestamps.txt'), 'r', encoding='utf-8') as f:
         lines = f.readlines()
         velo_datetimes = []
         for line in lines:
@@ -180,13 +265,13 @@ def save_velo_data(bag, kitti, velo_frame_id, topic):
         # create header
         header = Header()
         header.frame_id = velo_frame_id
-        header.stamp = rospy.Time.from_sec(float(datetime.strftime(dt, "%s.%f")))
+        header.stamp = datetime_to_ros_time(dt)
 
         # fill pcl msg
-        fields = [PointField('x', 0, PointField.FLOAT32, 1),
-                  PointField('y', 4, PointField.FLOAT32, 1),
-                  PointField('z', 8, PointField.FLOAT32, 1),
-                  PointField('i', 12, PointField.FLOAT32, 1)]
+        fields = [PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
+                  PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
+                  PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1),
+                  PointField(name='i', offset=12, datatype=PointField.FLOAT32, count=1)]
         pcl_msg = pcl2.create_cloud(header, fields, scan)
 
         bag.write(topic + '/pointcloud', pcl_msg, t=pcl_msg.header.stamp)
@@ -194,7 +279,7 @@ def save_velo_data(bag, kitti, velo_frame_id, topic):
 
 def get_static_transform(from_frame_id, to_frame_id, transform):
     t = transform[0:3, 3]
-    q = tf.transformations.quaternion_from_matrix(transform)
+    q = quaternion_from_matrix(transform)
     tf_msg = TransformStamped()
     tf_msg.header.frame_id = from_frame_id
     tf_msg.child_frame_id = to_frame_id
@@ -226,7 +311,7 @@ def save_static_transforms(bag, transforms, timestamps):
         t = get_static_transform(from_frame_id=transform[0], to_frame_id=transform[1], transform=transform[2])
         tfm.transforms.append(t)
     for timestamp in timestamps:
-        time = rospy.Time.from_sec(float(timestamp.strftime("%s.%f")))
+        time = datetime_to_ros_time(timestamp)
         for i in range(len(tfm.transforms)):
             tfm.transforms[i].header.stamp = time
         bag.write('/tf_static', tfm, t=time)
@@ -236,7 +321,7 @@ def save_gps_fix_data(bag, kitti, gps_frame_id, topic):
     for timestamp, oxts in zip(kitti.timestamps, kitti.oxts):
         navsatfix_msg = NavSatFix()
         navsatfix_msg.header.frame_id = gps_frame_id
-        navsatfix_msg.header.stamp = rospy.Time.from_sec(float(timestamp.strftime("%s.%f")))
+        navsatfix_msg.header.stamp = datetime_to_ros_time(timestamp)
         navsatfix_msg.latitude = oxts.packet.lat
         navsatfix_msg.longitude = oxts.packet.lon
         navsatfix_msg.altitude = oxts.packet.alt
@@ -248,7 +333,7 @@ def save_gps_vel_data(bag, kitti, gps_frame_id, topic):
     for timestamp, oxts in zip(kitti.timestamps, kitti.oxts):
         twist_msg = TwistStamped()
         twist_msg.header.frame_id = gps_frame_id
-        twist_msg.header.stamp = rospy.Time.from_sec(float(timestamp.strftime("%s.%f")))
+        twist_msg.header.stamp = datetime_to_ros_time(timestamp)
         twist_msg.twist.linear.x = oxts.packet.vf
         twist_msg.twist.linear.y = oxts.packet.vl
         twist_msg.twist.linear.z = oxts.packet.vu
@@ -267,16 +352,15 @@ def run_kitti2bag():
         odometry_sequences.append(str(s).zfill(2))
     
     parser.add_argument("kitti_type", choices = kitti_types, help = "KITTI dataset type")
-    parser.add_argument("dir", nargs = "?", default = os.getcwd(), help = "base directory of the dataset, if no directory passed the deafult is current working directory")
+    parser.add_argument("dir", nargs = "?", default = os.getcwd(), help = "base directory of the dataset, if no directory passed the default is current working directory")
     parser.add_argument("-t", "--date", help = "date of the raw dataset (i.e. 2011_09_26), option is only for RAW datasets.")
     parser.add_argument("-r", "--drive", help = "drive number of the raw dataset (i.e. 0001), option is only for RAW datasets.")
     parser.add_argument("-s", "--sequence", choices = odometry_sequences,help = "sequence of the odometry dataset (between 00 - 21), option is only for ODOMETRY datasets.")
+    parser.add_argument("-o", "--output", help = "output directory for the bag file (default: current working directory)")
     args = parser.parse_args()
 
     bridge = CvBridge()
-    compression = rosbag.Compression.NONE
-    # compression = rosbag.Compression.BZ2
-    # compression = rosbag.Compression.LZ4
+    # compression = 'none'  # ROS2 doesn't use the same compression options
     
     # CAMERAS
     cameras = [
@@ -290,14 +374,21 @@ def run_kitti2bag():
     
         if args.date == None:
             print("Date option is not given. It is mandatory for raw dataset.")
-            print("Usage for raw dataset: kitti2bag raw_synced [dir] -t <date> -r <drive>")
+            print("Usage for raw dataset: kitti2bag raw_synced [dir] -t <date> -r <drive> [-o output_dir]")
             sys.exit(1)
         elif args.drive == None:
             print("Drive option is not given. It is mandatory for raw dataset.")
-            print("Usage for raw dataset: kitti2bag raw_synced [dir] -t <date> -r <drive>")
+            print("Usage for raw dataset: kitti2bag raw_synced [dir] -t <date> -r <drive> [-o output_dir]")
             sys.exit(1)
         
-        bag = rosbag.Bag("kitti_{}_drive_{}_{}.bag".format(args.date, args.drive, args.kitti_type[4:]), 'w', compression=compression)
+        bag_filename = "kitti_{}_drive_{}_{}".format(args.date, args.drive, args.kitti_type[4:])
+        output_dir = args.output if args.output else os.getcwd()
+        
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
+        
+        bag_path = os.path.join(output_dir, bag_filename)
+        bag = ROS2BagWriter(bag_path)
         kitti = pykitti.raw(args.dir, args.date, args.drive)
         if not os.path.exists(kitti.data_path):
             print('Path {} does not exists. Exiting.'.format(kitti.data_path))
@@ -342,39 +433,41 @@ def run_kitti2bag():
             save_velo_data(bag, kitti, velo_frame_id, velo_topic)
 
         finally:
-            print("## OVERVIEW ##")
-            print(bag)
             bag.close()
             
     elif args.kitti_type.find("odom") != -1:
         
         if args.sequence == None:
             print("Sequence option is not given. It is mandatory for odometry dataset.")
-            print("Usage for odometry dataset: kitti2bag {odom_color, odom_gray} [dir] -s <sequence>")
+            print("Usage for odometry dataset: kitti2bag {odom_color, odom_gray} [dir] -s <sequence> [-o output_dir]")
             sys.exit(1)
             
-        bag = rosbag.Bag("kitti_data_odometry_{}_sequence_{}.bag".format(args.kitti_type[5:],args.sequence), 'w', compression=compression)
+        bag_filename = "kitti_data_odometry_{}_sequence_{}".format(args.kitti_type[5:], args.sequence)
+        output_dir = args.output if args.output else os.getcwd()
+        
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
+        
+        bag_path = os.path.join(output_dir, bag_filename)
+        bag = ROS2BagWriter(bag_path)
         
         kitti = pykitti.odometry(args.dir, args.sequence)
         if not os.path.exists(kitti.sequence_path):
             print('Path {} does not exists. Exiting.'.format(kitti.sequence_path))
             sys.exit(1)
 
-        kitti.load_calib()         
-        kitti.load_timestamps() 
-             
         if len(kitti.timestamps) == 0:
             print('Dataset is empty? Exiting.')
             sys.exit(1)
             
         if args.sequence in odometry_sequences[:11]:
             print("Odometry dataset sequence {} has ground truth information (poses).".format(args.sequence))
-            kitti.load_poses()
 
         try:
             util = pykitti.utils.read_calib_file(os.path.join(args.dir,'sequences',args.sequence, 'calib.txt'))
             current_epoch = (datetime.utcnow() - datetime(1970, 1, 1)).total_seconds()
             # Export
+            used_cameras = []
             if args.kitti_type.find("gray") != -1:
                 used_cameras = cameras[:2]
             elif args.kitti_type.find("color") != -1:
@@ -386,6 +479,6 @@ def run_kitti2bag():
 
         finally:
             print("## OVERVIEW ##")
-            print(bag)
+            # print(bag)  # ROS2 bag doesn't have __str__ method
             bag.close()
 

@@ -1,0 +1,41 @@
+# Git files
+.git
+.gitignore
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache
+
+# ROS build artifacts
+build/
+install/
+log/
+devel/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Documentation build
+docs/_build/
+
+# Test data to be mounted as volume
+data/
+output/
+*.bag
+*.db3
+*.mcap
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Misc
+*copy*
